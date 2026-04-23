@@ -201,7 +201,7 @@ const QUESTIONS = [
    item:{name:'Đồng đội lái xe tăng',emoji:'🪖'}},
   {stage:3,q:'Chiếc xe tăng mang số hiệu nào đã húc đổ cổng chính Dinh Độc Lập?',
    ch:['A.  843','B.  390','C.  844','D.  389'],ans:1,
-   item:{name:'Xe tăng 390',emoji:'🚛'}},
+   item:{name:'Xe Tăng',emoji:'🚛'}},
   {stage:3,q:'Phương châm tác chiến được Bộ Chính trị đề ra trong kế hoạch giải phóng miền Nam là gì?',
    ch:['A.  "Đánh nhanh, thắng nhanh"','B.  "Tích cực, chủ động, cơ động, linh hoạt"','C.  "Đánh ăn chắc, đánh chắc thắng"','D.  "Thần tốc, táo bạo, bất ngờ, chắc thắng"'],ans:3,
    item:{name:'Lá cờ Giải Phóng',emoji:'🚩'}},
@@ -229,7 +229,7 @@ const ITEM_IMAGES = {
   'Hồ sơ tình báo':       'game image/secret file.png',
   'Huy hiệu TNT':         'game image/TNT Emblem_transparent.png',
   'Đồng đội lái xe tăng': 'game image/teamates_transparent.png',
-  'Xe tăng 390':          'game image/tank_transparent.png',
+  'Xe Tăng':              'game image/tank_transparent.png',
   'Lá cờ Giải Phóng':     'game image/liberation flag_transparent.png',
   'Súng AK-47':           'game image/AK_transparent.png',
   'Logo TNT Group':       'game image/logo_transparent.png',
@@ -320,8 +320,8 @@ const G = {
   playerInfo:{name:'',position:'',bu:''},
   mouse:{x:0,y:0}, clickables:[],
   stars:[], lastTime:0,
-  imgs:{cover:null,bg1:null,bgEnd:null,char:null,soldiers:null,tank:null,dinhDocLap:null,ironGate:null,op1:null,op2:null},
-  imgLoaded:0, imgTotal:10,
+  imgs:{cover:null,bg1:null,bgEnd:null,char:null,soldiers:null,tank:null,dinhDocLap:null,ironGate:null,op1:null,op2:null,op3:null},
+  imgLoaded:0, imgTotal:11,
   itemImgCache:{}, // ảnh vật phẩm preload cho canvas road item
   tr:{active:false,dir:'out',alpha:0,dur:500,timer:0,cb:null},
 
@@ -558,6 +558,7 @@ const G = {
     load('ironGate','game image/iron gates_transparent.png');
     load('op1','game image/opening 1.jpg');
     load('op2','game image/opening 2.jpg');
+    load('op3','game image/after opening styled.png');
     // Preload ảnh vật phẩm cho road item (không tính imgTotal)
     Object.entries(ITEM_IMAGES).forEach(([name,src])=>{
       const img=new Image(); img.src=src;
@@ -586,6 +587,10 @@ G.scenes.INTRO = (function(){
     {
       key:'op2',
       text:'Từ chiến thắng tạo đà tại Chiến thắng Phước Long, quân ta liên tiếp mở ba chiến dịch lớn: Tây Nguyên, Huế – Đà Nẵng, và đỉnh cao là Chiến dịch Hồ Chí Minh – tiến thẳng vào Sài Gòn.',
+    },
+    {
+      key:'op3',
+      text:'', // Slide 3: ảnh giới thiệu nhân vật – không cần typewriter
     },
   ];
   const CHAR_MS   = 50;   // ms mỗi ký tự
@@ -685,15 +690,21 @@ G.scenes.INTRO = (function(){
         this.alpha=Math.min(1, this.alpha+dt/FADE_MS);
         if(this.alpha>=1){ this.phase=1; }
       } else if(this.phase===1){
-        // Gõ chữ tự động
-        this.charTimer+=dt;
-        const prev=this.charIdx;
-        this.charIdx=Math.min(this._totalChars, Math.floor(this.charTimer/CHAR_MS));
-        if(this.charIdx>prev && this.charIdx<this._totalChars) typeClick();
-        if(this.charIdx>=this._totalChars){ this.phase=2; this.pauseT=0; }
+        const slide = SLIDES[this.slideIdx];
+        if(!slide.text){
+          // Slide không có text (slide 3): hiện ảnh rồi pause luôn
+          this.phase=2; this.pauseT=0;
+        } else {
+          this.charTimer+=dt;
+          const prev=this.charIdx;
+          this.charIdx=Math.min(this._totalChars, Math.floor(this.charTimer/CHAR_MS));
+          if(this.charIdx>prev && this.charIdx<this._totalChars) typeClick();
+          if(this.charIdx>=this._totalChars){ this.phase=2; this.pauseT=0; }
+        }
       } else if(this.phase===2){
+        const pauseDur = SLIDES[this.slideIdx].text ? PAUSE_MS : 3500; // slide ảnh dừng 3.5s
         this.pauseT+=dt;
-        if(this.pauseT>=PAUSE_MS){ this.phase=3; }
+        if(this.pauseT>=pauseDur){ this.phase=3; }
       } else if(this.phase===3){
         this.alpha=Math.max(0, this.alpha-dt/FADE_MS);
         if(this.alpha<=0){
@@ -931,7 +942,12 @@ G.scenes.GAME = {
             ctx.beginPath(); ctx.arc(heroScrX-tw/2-da*32, heroY-da*8, 2+da*10, 0,Math.PI*2); ctx.fill();
           }
         }
-        ctx.drawImage(G.imgs.tank, TSX,TSY,TSW,TSH, heroScrX-tw/2, heroY-th, tw, th);
+        // Flip ngang để xe tăng chạy đúng chiều (hướng phải)
+        ctx.save();
+        ctx.translate(heroScrX, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(G.imgs.tank, TSX,TSY,TSW,TSH, -tw/2, heroY-th, tw, th);
+        ctx.restore();
       } else {
         drawJourneyTank(heroScrX, heroY, t, j.walking);
       }
@@ -981,6 +997,34 @@ G.scenes.FINAL = {
   // Crop vùng nội dung trong file iron gates mới (2560×1440, gate lấp đầy toàn ảnh)
   GSX:0, GSY:0, GSW:2560, GSH:1440,
 
+  _playCrash(){
+    const ac = window._gameAC; if(!ac) return;
+    if(ac.state==='suspended') ac.resume();
+    try{
+      const t = ac.currentTime;
+      // Tiếng nổ thấp – boom
+      const boom = ac.createOscillator(), bg = ac.createGain();
+      boom.type='sine'; boom.frequency.setValueAtTime(90,t); boom.frequency.exponentialRampToValueAtTime(25,t+0.6);
+      bg.gain.setValueAtTime(0.9,t); bg.gain.exponentialRampToValueAtTime(0.001,t+0.7);
+      boom.connect(bg); bg.connect(ac.destination); boom.start(t); boom.stop(t+0.7);
+      // Noise burst – tiếng sắt vỡ
+      const nLen=Math.floor(ac.sampleRate*0.5);
+      const nBuf=ac.createBuffer(1,nLen,ac.sampleRate);
+      const nd=nBuf.getChannelData(0); for(let i=0;i<nLen;i++) nd[i]=(Math.random()*2-1)*Math.pow(1-i/nLen,1.2);
+      const nSrc=ac.createBufferSource(); nSrc.buffer=nBuf;
+      const lp=ac.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=1800;
+      const ng=ac.createGain(); ng.gain.setValueAtTime(0.6,t); ng.gain.exponentialRampToValueAtTime(0.001,t+0.5);
+      nSrc.connect(lp); lp.connect(ng); ng.connect(ac.destination); nSrc.start(t); nSrc.stop(t+0.5);
+      // Tiếng kim loại va chạm – clang
+      [350,520,780].forEach((freq,i)=>{
+        const o=ac.createOscillator(), g=ac.createGain();
+        o.type='triangle'; o.frequency.value=freq*(1+Math.random()*0.08);
+        g.gain.setValueAtTime(0.25,t+i*0.03); g.gain.exponentialRampToValueAtTime(0.001,t+0.4+i*0.1);
+        o.connect(g); g.connect(ac.destination); o.start(t+i*0.03); o.stop(t+0.5);
+      });
+    }catch(e){}
+  },
+
   enter(){
     this.t=0; this.phase=0; this.tankX=-200; this.gateAngle=0;
     this._invShown=false; this._btnReg=false;
@@ -994,7 +1038,7 @@ G.scenes.FINAL = {
       sz:5+Math.random()*9, rot:Math.random()*Math.PI*2, rs:(Math.random()-.5)*.2,
     });
     setTimeout(()=>{this.phase=1}, 400);
-    setTimeout(()=>{this.phase=2}, 3800); // tank đâm vào cổng
+    setTimeout(()=>{this.phase=2; this._playCrash();}, 3800); // tank đâm vào cổng
     setTimeout(()=>{this.phase=3}, 6000); // màn chiến thắng
     setTimeout(()=>G.fadeTo('CREDITS'), 14000); // auto credits
   },
@@ -1063,7 +1107,7 @@ G.scenes.FINAL = {
     // ④ Xe tăng 390
     const TSX=5,TSY=256,TSW=1013,TSH=511;
     const fth=105, ftw=Math.round(TSW*(fth/TSH));
-    const roadY=438;
+    const roadY=462; // hạ xuống để xe tăng đứng trên mặt cỏ
     if(this.phase>=1 && G.imgs.tank && G.imgs.tank.complete && G.imgs.tank.naturalWidth){
       ctx.drawImage(G.imgs.tank, TSX,TSY,TSW,TSH, this.tankX-ftw/2, roadY-fth, ftw, fth);
     }
@@ -1354,7 +1398,7 @@ window._startMusic = (function(){
         src.buffer = decoded;
         src.loop = true;
         const gain = ac.createGain();
-        gain.gain.value = 0.35;
+        gain.gain.value = 0.55;
         src.connect(gain);
         gain.connect(ac.destination);
         src.start(0);
