@@ -1020,52 +1020,94 @@ G.scenes.FINAL = {
     try{
       const t = ac.currentTime;
 
-      // ── Layer 1: Sub-bass va chạm sâu (nền rung) ──────────
+      // ── IMPACT TỨC THỜI: sub-bass rung đất ────────────────
       const sub=ac.createOscillator(), sg=ac.createGain();
-      sub.type='sine'; sub.frequency.setValueAtTime(60,t); sub.frequency.exponentialRampToValueAtTime(18,t+1.6);
-      sg.gain.setValueAtTime(1.5,t); sg.gain.exponentialRampToValueAtTime(0.001,t+1.8);
-      sub.connect(sg); sg.connect(ac.destination); sub.start(t); sub.stop(t+1.8);
+      sub.type='sine'; sub.frequency.setValueAtTime(75,t); sub.frequency.exponentialRampToValueAtTime(14,t+2.4);
+      sg.gain.setValueAtTime(2.2,t); sg.gain.exponentialRampToValueAtTime(0.001,t+2.6);
+      sub.connect(sg); sg.connect(ac.destination); sub.start(t); sub.stop(t+2.6);
 
-      // ── Layer 2: Mid boom – tiếng nổ chính ────────────────
+      // Boom chính
       const boom=ac.createOscillator(), bg=ac.createGain();
-      boom.type='sine'; boom.frequency.setValueAtTime(130,t); boom.frequency.exponentialRampToValueAtTime(28,t+1.0);
-      bg.gain.setValueAtTime(1.3,t); bg.gain.exponentialRampToValueAtTime(0.001,t+1.2);
-      boom.connect(bg); bg.connect(ac.destination); boom.start(t); boom.stop(t+1.2);
+      boom.type='sine'; boom.frequency.setValueAtTime(160,t); boom.frequency.exponentialRampToValueAtTime(28,t+1.4);
+      bg.gain.setValueAtTime(2.0,t); bg.gain.exponentialRampToValueAtTime(0.001,t+1.6);
+      boom.connect(bg); bg.connect(ac.destination); boom.start(t); boom.stop(t+1.6);
 
-      // ── Layer 3: Impact burst (tiếng sắt bể tức thì) ──────
-      const n1L=Math.floor(ac.sampleRate*0.35);
+      // Boom thứ 2 lệch 180ms – hiệu ứng "nổ kép"
+      const boom2=ac.createOscillator(), bg2=ac.createGain();
+      boom2.type='triangle'; boom2.frequency.setValueAtTime(90,t+0.18); boom2.frequency.exponentialRampToValueAtTime(22,t+1.2);
+      bg2.gain.setValueAtTime(1.2,t+0.18); bg2.gain.exponentialRampToValueAtTime(0.001,t+1.4);
+      boom2.connect(bg2); bg2.connect(ac.destination); boom2.start(t+0.18); boom2.stop(t+1.4);
+
+      // ── CRACK tức thì (sắt gãy) ───────────────────────────
+      const crL=Math.floor(ac.sampleRate*0.07);
+      const crB=ac.createBuffer(1,crL,ac.sampleRate);
+      const crD=crB.getChannelData(0); for(let i=0;i<crL;i++) crD[i]=(Math.random()*2-1);
+      const crS=ac.createBufferSource(); crS.buffer=crB;
+      const crF=ac.createBiquadFilter(); crF.type='highpass'; crF.frequency.value=3500;
+      const crG=ac.createGain(); crG.gain.setValueAtTime(1.8,t);
+      crS.connect(crF); crF.connect(crG); crG.connect(ac.destination); crS.start(t); crS.stop(t+0.07);
+
+      // ── NỔ NOISE – sóng xung kích ─────────────────────────
+      const n1L=Math.floor(ac.sampleRate*0.7);
       const n1B=ac.createBuffer(1,n1L,ac.sampleRate);
-      const n1d=n1B.getChannelData(0); for(let i=0;i<n1L;i++) n1d[i]=(Math.random()*2-1)*Math.pow(1-i/n1L,0.7);
+      const n1d=n1B.getChannelData(0); for(let i=0;i<n1L;i++) n1d[i]=(Math.random()*2-1)*Math.pow(1-i/n1L,0.45);
       const n1S=ac.createBufferSource(); n1S.buffer=n1B;
-      const lp1=ac.createBiquadFilter(); lp1.type='bandpass'; lp1.frequency.value=2800; lp1.Q.value=0.5;
-      const ng1=ac.createGain(); ng1.gain.setValueAtTime(1.4,t); ng1.gain.exponentialRampToValueAtTime(0.001,t+0.35);
-      n1S.connect(lp1); lp1.connect(ng1); ng1.connect(ac.destination); n1S.start(t); n1S.stop(t+0.35);
+      const lp1=ac.createBiquadFilter(); lp1.type='lowpass'; lp1.frequency.value=2800;
+      const ng1=ac.createGain(); ng1.gain.setValueAtTime(1.8,t); ng1.gain.exponentialRampToValueAtTime(0.001,t+0.7);
+      n1S.connect(lp1); lp1.connect(ng1); ng1.connect(ac.destination); n1S.start(t); n1S.stop(t+0.7);
 
-      // ── Layer 4: Tường đổ – rumble kéo dài ────────────────
-      const n2L=Math.floor(ac.sampleRate*2.5);
+      // ── TƯỜNG ĐỔ – rumble dài ─────────────────────────────
+      const n2L=Math.floor(ac.sampleRate*4.0);
       const n2B=ac.createBuffer(1,n2L,ac.sampleRate);
-      const n2d=n2B.getChannelData(0); for(let i=0;i<n2L;i++) n2d[i]=(Math.random()*2-1)*Math.pow(1-i/n2L,0.35);
+      const n2d=n2B.getChannelData(0); for(let i=0;i<n2L;i++) n2d[i]=(Math.random()*2-1)*Math.pow(1-i/n2L,0.25);
       const n2S=ac.createBufferSource(); n2S.buffer=n2B;
-      const lp2=ac.createBiquadFilter(); lp2.type='lowpass'; lp2.frequency.value=700;
-      const ng2=ac.createGain(); ng2.gain.setValueAtTime(0.85,t+0.06); ng2.gain.exponentialRampToValueAtTime(0.001,t+2.5);
-      n2S.connect(lp2); lp2.connect(ng2); ng2.connect(ac.destination); n2S.start(t+0.06); n2S.stop(t+2.5);
+      const lp2=ac.createBiquadFilter(); lp2.type='lowpass'; lp2.frequency.value=550;
+      const ng2=ac.createGain(); ng2.gain.setValueAtTime(1.1,t+0.05); ng2.gain.exponentialRampToValueAtTime(0.001,t+4.0);
+      n2S.connect(lp2); lp2.connect(ng2); ng2.connect(ac.destination); n2S.start(t+0.05); n2S.stop(t+4.0);
 
-      // ── Layer 5: Gạch đá rơi – mid crumble ───────────────
-      const n3L=Math.floor(ac.sampleRate*1.8);
+      // ── TIẾNG RÈNG – gạch đá rơi từng mảng ──────────────
+      const n3L=Math.floor(ac.sampleRate*3.0);
       const n3B=ac.createBuffer(1,n3L,ac.sampleRate);
-      const n3d=n3B.getChannelData(0); for(let i=0;i<n3L;i++) n3d[i]=(Math.random()*2-1)*Math.pow(1-i/n3L,0.55);
+      const n3d=n3B.getChannelData(0); for(let i=0;i<n3L;i++) n3d[i]=(Math.random()*2-1)*Math.pow(1-i/n3L,0.5);
       const n3S=ac.createBufferSource(); n3S.buffer=n3B;
-      const hp=ac.createBiquadFilter(); hp.type='bandpass'; hp.frequency.value=1200; hp.Q.value=0.4;
-      const ng3=ac.createGain(); ng3.gain.setValueAtTime(0.55,t+0.12); ng3.gain.exponentialRampToValueAtTime(0.001,t+1.8);
-      n3S.connect(hp); hp.connect(ng3); ng3.connect(ac.destination); n3S.start(t+0.12); n3S.stop(t+1.8);
+      const bp=ac.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=1100; bp.Q.value=0.35;
+      const ng3=ac.createGain(); ng3.gain.setValueAtTime(0.7,t+0.1); ng3.gain.exponentialRampToValueAtTime(0.001,t+3.0);
+      n3S.connect(bp); bp.connect(ng3); ng3.connect(ac.destination); n3S.start(t+0.1); n3S.stop(t+3.0);
 
-      // ── Layer 6: Kim loại va chạm – nhiều tần số ─────────
-      [220,340,480,620,820,1050,1400].forEach((freq,i)=>{
+      // ── BỤI & SỎI (high-freq tail) ───────────────────────
+      const n4L=Math.floor(ac.sampleRate*3.5);
+      const n4B=ac.createBuffer(1,n4L,ac.sampleRate);
+      const n4d=n4B.getChannelData(0); for(let i=0;i<n4L;i++) n4d[i]=(Math.random()*2-1)*Math.pow(1-i/n4L,0.55);
+      const n4S=ac.createBufferSource(); n4S.buffer=n4B;
+      const hp=ac.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=2000;
+      const ng4=ac.createGain(); ng4.gain.setValueAtTime(0.45,t+0.15); ng4.gain.exponentialRampToValueAtTime(0.001,t+3.5);
+      n4S.connect(hp); hp.connect(ng4); ng4.connect(ac.destination); n4S.start(t+0.15); n4S.stop(t+3.5);
+
+      // ── MẢNH SẮT RỒI XUỐNG – tiếng cụp bất quy tắc ─────
+      [0.35,0.62,0.95,1.3,1.75,2.2,2.7,3.2].forEach((delay)=>{
+        const dL=Math.floor(ac.sampleRate*(0.06+Math.random()*0.18));
+        const dB=ac.createBuffer(1,dL,ac.sampleRate);
+        const dd=dB.getChannelData(0); for(let j=0;j<dL;j++) dd[j]=(Math.random()*2-1)*Math.pow(1-j/dL,1.8);
+        const dS=ac.createBufferSource(); dS.buffer=dB;
+        const dF=ac.createBiquadFilter(); dF.type='bandpass'; dF.frequency.value=700+Math.random()*1800; dF.Q.value=1.0;
+        const dG=ac.createGain(); dG.gain.setValueAtTime(0.3+Math.random()*0.45, t+delay);
+        dS.connect(dF); dF.connect(dG); dG.connect(ac.destination);
+        dS.start(t+delay); dS.stop(t+delay+dL/ac.sampleRate+0.04);
+      });
+
+      // ── KIM LOẠI RUNG – cổng biến dạng ───────────────────
+      const groan=ac.createOscillator(), gg=ac.createGain();
+      groan.type='sawtooth'; groan.frequency.setValueAtTime(200,t+0.08); groan.frequency.exponentialRampToValueAtTime(55,t+1.1);
+      gg.gain.setValueAtTime(0.55,t+0.08); gg.gain.exponentialRampToValueAtTime(0.001,t+1.2);
+      groan.connect(gg); gg.connect(ac.destination); groan.start(t+0.08); groan.stop(t+1.2);
+
+      // Clang series
+      [200,310,450,600,820,1060,1380,1800].forEach((freq,i)=>{
         const o=ac.createOscillator(), g=ac.createGain();
-        o.type='triangle'; o.frequency.value=freq*(1+Math.random()*0.1);
-        g.gain.setValueAtTime(0.4,t+i*0.02);
-        g.gain.exponentialRampToValueAtTime(0.001,t+0.45+i*0.09);
-        o.connect(g); g.connect(ac.destination); o.start(t+i*0.02); o.stop(t+0.55+i*0.09);
+        o.type='triangle'; o.frequency.value=freq*(1+Math.random()*0.12);
+        g.gain.setValueAtTime(0.5,t+i*0.022);
+        g.gain.exponentialRampToValueAtTime(0.001,t+i*0.022+0.7+i*0.08);
+        o.connect(g); g.connect(ac.destination); o.start(t+i*0.022); o.stop(t+i*0.022+0.8+i*0.08);
       });
 
     }catch(e){}
@@ -1418,6 +1460,8 @@ G.scenes.ENDING = (function(){
 
     enter(){
       G.clearClicks();
+      // Ẩn inventory overlay từ FINAL scene
+      document.getElementById('finalInventory').style.display='none';
       this.slideIdx=0; this._transitioning=false;
       this._initSlide();
       // Click để skip slide hiện tại
