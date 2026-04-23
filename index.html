@@ -588,7 +588,7 @@ G.scenes.INTRO = (function(){
       text:'Từ chiến thắng tạo đà tại Chiến thắng Phước Long, quân ta liên tiếp mở ba chiến dịch lớn: Tây Nguyên, Huế – Đà Nẵng, và đỉnh cao là Chiến dịch Hồ Chí Minh – tiến thẳng vào Sài Gòn.',
     },
   ];
-  const CHAR_MS   = 18;   // ms mỗi ký tự (nhanh hơn)
+  const CHAR_MS   = 50;   // ms mỗi ký tự
   const PAUSE_MS  = 2200; // dừng sau khi gõ xong
   const FADE_MS   = 500;  // fade in/out
   const FONT_SZ   = 13;
@@ -668,8 +668,13 @@ G.scenes.INTRO = (function(){
       G.clearClicks();
       this.slideIdx=0;
       this._transitioning=false;
+      this._audioUnlocked=false;
       this._initSlide();
-      // Không đăng ký click – intro tự chạy hoàn toàn
+      // Click chỉ để bật audio, không skip
+      G.addClick(0,0,800,500,()=>{
+        this._audioUnlocked=true;
+        if(window._gameAC && window._gameAC.state==='suspended') window._gameAC.resume();
+      });
     },
 
     update(dt){
@@ -725,6 +730,16 @@ G.scenes.INTRO = (function(){
 
       // Chỉ số slide
       P.text(`${this.slideIdx+1} / ${SLIDES.length}`,780,18,'#555',11,'right');
+
+      // Icon bật âm thanh – ẩn sau khi đã click
+      if(!this._audioUnlocked){
+        const pulse = 0.6 + 0.35*Math.sin(Date.now()/400);
+        ctx.globalAlpha = pulse;
+        ctx.fillStyle='rgba(0,0,0,0.5)';
+        ctx.beginPath(); ctx.roundRect(8,8,148,30,6); ctx.fill();
+        P.text('🔊 Nhấn để bật âm thanh', 82, 28, '#fff', 11, 'center');
+        ctx.globalAlpha=1;
+      }
     },
   };
 })();
