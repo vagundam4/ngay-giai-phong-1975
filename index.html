@@ -969,6 +969,13 @@ G.scenes.GAME = {
       const sh=120, sw=Math.round(SSW*(sh/SSH)); // ~185×120px
       const bob = j.walking ? Math.sin(j.walkT*6)*1.8 : 0;
       if(G.imgs.soldiers && G.imgs.soldiers.complete && G.imgs.soldiers.naturalWidth){
+        // Người lính thứ 4 – ở phía sau, nhỏ hơn và hơi mờ hơn
+        const sh4=Math.round(sh*0.86), sw4=Math.round(sw*0.86);
+        const bob4 = j.walking ? Math.sin(j.walkT*6 + 1.1)*1.8 : 0; // lệch pha bob
+        ctx.globalAlpha=0.82;
+        ctx.drawImage(G.imgs.soldiers, SSX,SSY,SSW,SSH, heroScrX - sw/2 - sw*0.48, heroY-sh4+bob4, sw4, sh4);
+        ctx.globalAlpha=1;
+        // 3 người phía trước
         ctx.drawImage(G.imgs.soldiers, SSX,SSY,SSW,SSH, heroScrX-sw/2, heroY-sh+bob, sw, sh);
       }
     } else {
