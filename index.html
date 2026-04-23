@@ -1,0 +1,1527 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Giải Phóng Miền Nam – 30/4/1975</title>
+<link href="https://fonts.googleapis.com/css2?family=Rokkitt:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#111;font-family:'Rokkitt',serif;overflow:hidden;position:fixed;inset:0}
+#gameWrapper{
+  position:fixed;
+  top:50%; left:50%;
+  width:800px;height:500px;
+  box-shadow:0 0 60px rgba(218,37,29,.5);
+  transform-origin:center center;
+  transform:translate(-50%,-50%);
+}
+canvas{display:block;width:800px;height:500px;image-rendering:pixelated}
+/* Các overlay HTML scale theo wrapper */
+#stageIntro,#questionOverlay,#resultFeedback,#gameOverScreen,#finalInventory,#loadingScreen{
+  font-size:clamp(10px,1.8vw,16px);
+}
+
+/* LOADING */
+#loadingScreen{position:absolute;inset:0;background:#0a0a0a;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;gap:18px}
+#loadingScreen h1{font-size:20px;color:#f4d03f;text-shadow:0 0 12px #DA251D;text-align:center;line-height:1.6}
+.lbar-outer{width:280px;height:16px;border:2px solid #f4d03f;border-radius:2px;overflow:hidden}
+.lbar-inner{height:100%;background:linear-gradient(90deg,#DA251D,#ff6b35);width:0%;transition:width .2s}
+#loadingScreen p{font-size:13px;color:#666}
+
+/* ITEM IMAGE IN POPUP */
+#resultItemImg{margin:12px auto 6px;display:none;text-align:center}
+#resultItemImgEl{width:160px;height:160px;object-fit:contain;border:2px solid #f4d03f;border-radius:8px;background:rgba(0,0,0,.4);padding:6px}
+
+/* STAGE INTRO */
+#stageIntro{position:absolute;inset:0;display:none;align-items:center;justify-content:center;z-index:80;background:rgba(0,0,0,.68)}
+#stageIntroBox{text-align:center;padding:28px 44px;border:3px solid #f4d03f;background:rgba(5,5,15,.92);border-radius:4px;animation:popIn .4s ease}
+#stageIntroBox .stage-num{font-size:14px;color:#888;letter-spacing:3px;margin-bottom:8px}
+#stageIntroBox .stage-name{font-size:24px;font-weight:700;margin-bottom:12px}
+#stageIntroBox .stage-sub{font-size:14px;color:#aaa}
+@keyframes popIn{from{transform:scale(.8);opacity:0}to{transform:scale(1);opacity:1}}
+
+/* QUESTION POPUP */
+#questionOverlay{position:absolute;inset:0;display:none;align-items:flex-end;justify-content:center;z-index:70;padding-bottom:0}
+#questionBox{width:100%;background:rgba(4,8,20,.96);border-top:3px solid #f4d03f;padding:14px 22px 18px}
+#qStageLabel{font-size:11px;color:#888;letter-spacing:2px;margin-bottom:5px;text-transform:uppercase}
+#qText{font-size:16px;color:#fff;font-weight:600;line-height:1.5;margin-bottom:12px}
+#qChoices{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.qbtn{background:rgba(255,255,255,.06);border:2px solid #444;color:#ddd;font-family:'Rokkitt',serif;font-size:14px;padding:9px 12px;cursor:pointer;text-align:left;border-radius:3px;transition:all .15s;line-height:1.4}
+.qbtn:hover{background:rgba(244,208,63,.15);border-color:#f4d03f;color:#fff}
+.qbtn.correct{background:rgba(39,174,96,.25);border-color:#27ae60;color:#2ecc71;pointer-events:none}
+.qbtn.wrong{background:rgba(231,76,60,.25);border-color:#e74c3c;color:#e74c3c;pointer-events:none}
+.qbtn.reveal{background:rgba(39,174,96,.12);border-color:#27ae60;color:#2ecc71;pointer-events:none}
+
+/* RESULT FEEDBACK */
+#resultFeedback{position:absolute;inset:0;display:none;align-items:center;justify-content:center;z-index:75;pointer-events:none}
+#resultBox{text-align:center;padding:18px 36px 22px;border-radius:4px;border:3px solid;animation:popIn .3s ease;max-width:340px}
+#resultBox.correct-box{background:rgba(10,40,10,.95);border-color:#27ae60}
+#resultBox.wrong-box{background:rgba(40,5,5,.95);border-color:#e74c3c}
+#resultIcon{font-size:42px;display:block;margin-bottom:6px}
+#resultTitle{font-size:22px;font-weight:700;margin-bottom:5px}
+#resultDetail{font-size:14px;color:#aaa;line-height:1.6}
+#resultItemName{font-size:16px;color:#f4d03f;margin-top:7px;font-weight:600}
+#resultContinueBtn{margin-top:14px;background:#f4d03f;color:#000;border:none;font-family:'Rokkitt',serif;font-size:15px;font-weight:700;padding:10px 32px;cursor:pointer;border-radius:3px;pointer-events:all}
+#resultContinueBtn:hover{background:#fff}
+
+/* FINAL INVENTORY */
+#finalInventory{position:absolute;left:80px;right:80px;top:220px;display:none;flex-wrap:wrap;justify-content:center;gap:8px;z-index:85;pointer-events:none}
+.finv-item{display:flex;flex-direction:column;align-items:center;gap:3px}
+.finv-item img{width:44px;height:44px;object-fit:contain;border:1px solid #f4d03f;border-radius:4px;background:rgba(0,0,0,.5);padding:2px}
+.finv-item span{font-size:9px;color:#ccc;text-align:center;max-width:46px;line-height:1.2}
+
+/* GAME OVER */
+#gameOverScreen{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;z-index:90;background:rgba(30,0,0,.93);gap:16px}
+#gameOverScreen h2{font-size:36px;color:#e74c3c;text-shadow:0 0 20px #e74c3c}
+#gameOverScreen p{font-size:16px;color:#ccc;text-align:center;line-height:1.8;max-width:480px}
+#gameOverScreen .correct-ans{color:#f4d03f;font-weight:600}
+#retryBtn{background:#DA251D;color:#fff;border:none;font-family:'Rokkitt',serif;font-size:16px;font-weight:700;padding:12px 40px;cursor:pointer;border-radius:3px;margin-top:8px}
+#retryBtn:hover{background:#ff3030}
+#retryBtn.lbBtn{background:rgba(244,208,63,.15);border:2px solid #f4d03f;color:#f4d03f;margin-top:6px}
+#retryBtn.lbBtn:hover{background:#f4d03f;color:#000}
+
+/* PLAYER INFO SCREEN */
+#playerInfoScreen{position:absolute;inset:0;display:none;align-items:center;justify-content:center;z-index:86;background:rgba(0,0,0,.9)}
+#playerInfoBox{background:rgba(4,10,30,.97);border:2px solid #f4d03f;border-radius:6px;padding:30px 36px;width:420px;max-width:92%}
+#playerInfoBox h2{color:#f4d03f;font-size:19px;text-align:center;margin-bottom:5px;letter-spacing:2px}
+#playerInfoBox .pinfoSub{color:#888;font-size:12px;text-align:center;margin-bottom:20px}
+.pfield{margin-bottom:13px}
+.pfield label{display:block;color:#aaa;font-size:11px;letter-spacing:1px;margin-bottom:4px;text-transform:uppercase}
+.pfield input{width:100%;background:rgba(255,255,255,.06);border:1.5px solid #444;color:#fff;font-family:'Rokkitt',serif;font-size:14px;padding:9px 11px;border-radius:3px;outline:none;transition:border-color .15s;box-sizing:border-box}
+.pfield input:focus{border-color:#f4d03f}
+.pfield input::placeholder{color:#444}
+#pinfoError{color:#e74c3c;font-size:12px;text-align:center;min-height:18px;margin-bottom:8px}
+#pinfoStartBtn{width:100%;background:#DA251D;color:#fff;border:none;font-family:'Rokkitt',serif;font-size:16px;font-weight:700;padding:12px;cursor:pointer;border-radius:3px;letter-spacing:1px;transition:background .15s}
+#pinfoStartBtn:hover{background:#ff3030}
+</style>
+</head>
+<body>
+<div id="gameWrapper">
+  <canvas id="gameCanvas" width="800" height="500"></canvas>
+  <div id="stageIntro">
+    <div id="stageIntroBox">
+      <div class="stage-num" id="stageNum"></div>
+      <div class="stage-name" id="stageName"></div>
+      <div class="stage-sub" id="stageSub">Chuẩn bị cho nhiệm vụ tiếp theo...</div>
+    </div>
+  </div>
+  <div id="questionOverlay">
+    <div id="questionBox">
+      <div id="qStageLabel"></div>
+      <div id="qText"></div>
+      <div id="qChoices"></div>
+    </div>
+  </div>
+  <div id="resultFeedback">
+    <div id="resultBox">
+      <span id="resultIcon"></span>
+      <div id="resultTitle"></div>
+      <div id="resultDetail"></div>
+      <div id="resultItemImg"><img id="resultItemImgEl" alt=""></div>
+      <div id="resultItemName"></div>
+      <button id="resultContinueBtn" onclick="G.onResultContinue()">Tiếp tục ▶</button>
+    </div>
+  </div>
+  <div id="finalInventory"></div>
+  <div id="playerInfoScreen">
+    <div id="playerInfoBox">
+      <h2>📋 ĐĂNG KÝ THÔNG TIN</h2>
+      <p class="pinfoSub">Điền thông tin để lưu thành tích của bạn vào bảng xếp hạng</p>
+      <div class="pfield"><label>Họ và Tên *</label><input id="pinfoName" type="text" placeholder="Nhập họ và tên..." maxlength="50" autocomplete="off"></div>
+      <div class="pfield"><label>Vị Trí Làm Việc *</label><input id="pinfoPos" type="text" placeholder="Nhập vị trí của bạn..." maxlength="50" autocomplete="off"></div>
+      <div class="pfield"><label>BU / Bộ Phận</label><input id="pinfoBU" type="text" placeholder="Nhập BU của bạn..." maxlength="50" autocomplete="off"></div>
+      <div id="pinfoError"></div>
+      <button id="pinfoStartBtn" onclick="G.submitPlayerInfo()">🚀 BẮT ĐẦU HÀNH TRÌNH</button>
+    </div>
+  </div>
+  <div id="gameOverScreen">
+    <h2>❌ SAI RỒI!</h2>
+    <p id="gameOverMsg"></p>
+    <button id="retryBtn" onclick="G.restartGame()">🔄 Chơi Lại Từ Đầu</button>
+    <button id="retryBtn" class="lbBtn" onclick="G.fadeTo('LEADERBOARD')">🏆 Bảng Xếp Hạng</button>
+  </div>
+  <div id="loadingScreen">
+    <h1>GIẢI PHÓNG MIỀN NAM<br>30/4/1975</h1>
+    <div class="lbar-outer"><div class="lbar-inner" id="lbar"></div></div>
+    <p>Đang tải...</p>
+  </div>
+</div>
+<script>
+// ═══════════════════════════════════════════════════════
+//  AUDIO CONTEXT – tạo ngay khi load, resume khi có gesture đầu tiên
+// ═══════════════════════════════════════════════════════
+(function(){
+  try{ window._gameAC = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){}
+  const resume = ()=>{
+    if(window._gameAC && window._gameAC.state==='suspended') window._gameAC.resume();
+  };
+  ['pointerdown','touchstart','keydown','mousedown'].forEach(ev=>
+    document.addEventListener(ev, resume, {once:true, passive:true})
+  );
+})();
+
+// ═══════════════════════════════════════════════════════
+//  DỮ LIỆU
+// ═══════════════════════════════════════════════════════
+const STAGES = [
+  {id:1, name:'GIAI ĐOẠN 1: CHUẨN BỊ',           color:'#27ae60', emoji:'🟢'},
+  {id:2, name:'GIAI ĐOẠN 2: TNT XUẤT HIỆN',        color:'#2980b9', emoji:'🔵'},
+  {id:3, name:'GIAI ĐOẠN 3: TRANG BỊ & TIẾN CÔNG', color:'#f39c12', emoji:'🟡'},
+  {id:4, name:'GIAI ĐOẠN 4: TNT – NÂNG CẤP',       color:'#8e44ad', emoji:'🟣'},
+  {id:5, name:'GIAI ĐOẠN 5: HOÀN THÀNH NHIỆM VỤ',  color:'#e74c3c', emoji:'🔴'},
+];
+
+const QUESTIONS = [
+  {stage:1,q:'Ngày Giải phóng miền Nam, thống nhất đất nước là ngày nào?',
+   ch:['A.  2/9/1945','B.  7/5/1954','C.  30/4/1975','D.  19/5/1975'],ans:2,
+   item:{name:'Bản đồ chiến dịch',emoji:'🗺️'}},
+  {stage:1,q:'Chiến dịch mang tính quyết định dẫn đến thắng lợi ngày 30/4/1975 có tên là gì?',
+   ch:['A.  Chiến dịch Tây Nguyên','B.  Chiến dịch Hồ Chí Minh','C.  Chiến dịch Huế – Đà Nẵng','D.  Chiến dịch Điện Biên Phủ'],ans:1,
+   item:{name:'Bộ đàm liên lạc',emoji:'📻'}},
+  {stage:1,q:'Tổng thống cuối cùng của chính quyền Sài Gòn là ai?',
+   ch:['A.  Nguyễn Văn Thiệu','B.  Trần Văn Hương','C.  Dương Văn Minh','D.  Ngô Đình Diệm'],ans:2,
+   item:{name:'Hồ sơ tình báo',emoji:'📁'}},
+  {stage:2,q:'Giá trị cốt lõi của TNT Group là gì?',
+   ch:['A.  YIPS','B.  TIPS','C.  PITS','D.  STIP'],ans:1,
+   item:{name:'Huy hiệu TNT',emoji:'🏅'}},
+  {stage:2,q:'Tinh thần nào giúp một tập thể chiến thắng mọi thử thách?',
+   ch:['A.  Cá nhân xuất sắc','B.  May mắn','C.  Đoàn kết','D.  Ngẫu nhiên'],ans:2,
+   item:{name:'Đồng đội lái xe tăng',emoji:'🪖'}},
+  {stage:3,q:'Chiếc xe tăng mang số hiệu nào đã húc đổ cổng chính Dinh Độc Lập?',
+   ch:['A.  843','B.  390','C.  844','D.  389'],ans:1,
+   item:{name:'Xe tăng 390',emoji:'🚛'}},
+  {stage:3,q:'Phương châm tác chiến được Bộ Chính trị đề ra trong kế hoạch giải phóng miền Nam là gì?',
+   ch:['A.  "Đánh nhanh, thắng nhanh"','B.  "Tích cực, chủ động, cơ động, linh hoạt"','C.  "Đánh ăn chắc, đánh chắc thắng"','D.  "Thần tốc, táo bạo, bất ngờ, chắc thắng"'],ans:3,
+   item:{name:'Lá cờ Giải Phóng',emoji:'🚩'}},
+  {stage:3,q:'Lúc 10h45 ngày 30/4/1975, sự kiện nào xảy ra tại Sài Gòn?',
+   ch:['A.  Dương Văn Minh đầu hàng','B.  Xe tăng và bộ binh tiến vào Dinh Độc Lập, bắt toàn bộ nội các','C.  Chiến dịch Hồ Chí Minh toàn thắng','D.  Cắm cờ trên nóc Dinh Độc Lập'],ans:1,
+   item:{name:'Súng AK-47',emoji:'🔫'}},
+  {stage:4,q:'Tên gọi dành cho các thành viên trong TNT Culture là gì?',
+   ch:['A.  TNTers','B.  Tinizens','C.  TNT People','D.  TNT Crew'],ans:1,
+   item:{name:'Logo TNT Group',emoji:'🎖️'}},
+  {stage:4,q:'Sứ mệnh của TNT Group hướng tới điều gì?',
+   ch:['A.  Tối đa hóa lợi nhuận bằng mọi cách','B.  Môi trường làm việc không cần kỷ luật','C.  Phát triển bền vững, mang lại giá trị cho khách hàng và đội ngũ','D.  Chỉ tập trung vào thị trường nội địa'],ans:2,
+   item:null},
+  {stage:5,q:'Sự kiện nào đánh dấu sự kết thúc của chiến tranh Việt Nam?',
+   ch:['A.  Ký Hiệp định Paris','B.  Giải phóng Sài Gòn','C.  Thành lập ASEAN','D.  Đổi mới kinh tế'],ans:1,
+   item:{name:'Loa Phát Thanh',emoji:'📢'}},
+  {stage:5,q:'Ý nghĩa lớn nhất của ngày 30/4 là gì?',
+   ch:['A.  Kết thúc một giai đoạn chiến tranh, mở ra thời kỳ mới','B.  Chấm dứt ách thống trị đế quốc, giải phóng hoàn toàn miền Nam, thống nhất đất nước','C.  Tạo tiền đề cải thiện đời sống nhân dân sau chiến tranh','D.  Mở ra cơ hội Việt Nam hội nhập khu vực và thế giới'],ans:1,
+   item:null},
+];
+
+// ── Mapping tên vật phẩm → file ảnh ─────────────────────
+const ITEM_IMAGES = {
+  'Bản đồ chiến dịch':    'game image/tactical map.png',
+  'Bộ đàm liên lạc':      'game image/phone_transparent.png',
+  'Hồ sơ tình báo':       'game image/secret file.png',
+  'Huy hiệu TNT':         'game image/TNT Emblem_transparent.png',
+  'Đồng đội lái xe tăng': 'game image/teamates_transparent.png',
+  'Xe tăng 390':          'game image/tank_transparent.png',
+  'Lá cờ Giải Phóng':     'game image/liberation flag_transparent.png',
+  'Súng AK-47':           'game image/AK_transparent.png',
+  'Logo TNT Group':       'game image/logo_transparent.png',
+  'Loa Phát Thanh':       'game image/speaker_transparent.png',
+};
+
+// ── Vị trí thế giới (world coords) cho từng câu hỏi ──────
+// Thế giới rộng 2800px, màn hình 800px → cảm giác di chuyển rõ ràng
+// Mỗi bước ~190px → ở tốc độ 0.063px/ms sẽ mất ~3 giây
+const WORLD_W   = 2800;
+const HERO_SCR  = 260;   // vị trí X cố định của nhân vật trên màn hình
+const CHECKPOINTS = [200, 390, 580, 770, 950, 1130, 1325, 1510, 1690, 1870, 2045, 2220];
+// Sau câu 12: đi tới 2620 (ngay trước cổng Dinh)
+
+// ═══════════════════════════════════════════════════════
+//  CANVAS / RENDER HELPERS
+// ═══════════════════════════════════════════════════════
+const canvas = document.getElementById('gameCanvas');
+const ctx    = canvas.getContext('2d');
+
+const P = {
+  rect(x,y,w,h,c){ctx.fillStyle=c;ctx.fillRect(~~x,~~y,~~w,~~h)},
+  text(t,x,y,c='#fff',sz=16,al='left'){ctx.fillStyle=c;ctx.font=`${sz}px 'Rokkitt',serif`;ctx.textAlign=al;ctx.fillText(t,~~x,~~y)},
+  grad(x,y,w,h,stops){const g=ctx.createLinearGradient(x,y,x,y+h);stops.forEach(([s,c])=>g.addColorStop(s,c));ctx.fillStyle=g;ctx.fillRect(x,y,w,h)},
+};
+
+const CHAR_SPRITES = {
+  stand:{sx:317,sy:284,sw:354,sh:665},
+  walk: {sx:787,sy:284,sw:299,sh:675},
+  flag: {sx:1157,sy:154,sw:405,sh:794},
+};
+
+// ── vẽ cây ──────────────────────────────────────────────
+function drawTree(wx, gy, height, t, seed){
+  const sway = Math.sin(t*.0013 + seed*.85) * 2.5;
+  ctx.fillStyle = '#6b3d14';
+  ctx.fillRect(wx-4+sway*.1, gy-height*.36, 8, height*.36);
+  [[0,1,.27],[.18,.88,.22],[.4,.72,.18]].forEach(([yf,ys,sp],li)=>{
+    ctx.fillStyle = ['#1a7010','#157a0a','#196e0c'][li];
+    ctx.beginPath();
+    ctx.moveTo(wx + sway, gy - height*(1-yf));
+    ctx.lineTo(wx - height*sp*ys + sway*.4, gy - height*(.5+yf*.2));
+    ctx.lineTo(wx + height*sp*ys + sway*.4, gy - height*(.5+yf*.2));
+    ctx.closePath(); ctx.fill();
+  });
+}
+
+// ── vẽ xe tăng (trong hành trình) ───────────────────────
+function drawJourneyTank(sx, sy, t, moving){
+  // Khói bụi khi di chuyển
+  if(moving){
+    for(let d=0;d<5;d++){
+      const da = ((t*.0028 + d*.32) % 1);
+      ctx.fillStyle = `rgba(170,150,110,${0.38*(1-da)})`;
+      ctx.beginPath();
+      ctx.arc(sx-54 - da*30, sy+5 - da*6, 2+da*9, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
+  P.rect(sx-54, sy-21, 108, 25, '#556B2F');
+  P.rect(sx-22, sy-39, 60, 19, '#4a5e28');
+  P.rect(sx+28, sy-36, 52, 8,  '#3d5022');
+  P.rect(sx-58, sy+3,  116,15, '#1a1a1a');
+  const toff = moving ? (t*.026 % 14) : 0;
+  for(let wx=-56; wx<58; wx+=14){
+    P.rect(sx+wx+toff, sy+4,  10, 13, '#2d2d2d');
+    P.rect(sx+wx+toff, sy+5,  10, 10, '#555');
+  }
+  [-42,-20,4,26].forEach(wx=>{
+    ctx.beginPath(); ctx.arc(sx+wx, sy+11, 7,0,Math.PI*2); ctx.fillStyle='#333'; ctx.fill();
+    ctx.beginPath(); ctx.arc(sx+wx, sy+11, 3,0,Math.PI*2); ctx.fillStyle='#888'; ctx.fill();
+  });
+  P.rect(sx-11, sy-56, 3, 21, '#aaa');
+  P.rect(sx- 8, sy-56, 18,12, '#DA251D');
+  ctx.fillStyle='#FFFF00'; ctx.font='10px serif'; ctx.textAlign='center';
+  ctx.fillText('★', sx+2, sy-47);
+  P.rect(sx-24, sy-15, 28,13, 'rgba(0,0,0,.55)');
+  P.text('390', sx-10, sy-5, '#fff', 10, 'center');
+}
+
+// ═══════════════════════════════════════════════════════
+//  ENGINE (G)
+// ═══════════════════════════════════════════════════════
+const G = {
+  scene:null, scenes:{},
+  currentQ:0, inventory:[], lastStage:0,
+  correctCount:0, gameStartTime:0,
+  playerInfo:{name:'',position:'',bu:''},
+  mouse:{x:0,y:0}, clickables:[],
+  stars:[], lastTime:0,
+  imgs:{cover:null,bg1:null,bgEnd:null,char:null,soldiers:null,tank:null,dinhDocLap:null,ironGate:null,op1:null,op2:null},
+  imgLoaded:0, imgTotal:10,
+  itemImgCache:{}, // ảnh vật phẩm preload cho canvas road item
+  tr:{active:false,dir:'out',alpha:0,dur:500,timer:0,cb:null},
+
+  // ── HÀNH TRÌNH ──────────────────────────────────────
+  // worldX: vị trí nhân vật trong thế giới (pixel)
+  // cameraX: camera offset (smooth theo worldX)
+  journey:{
+    worldX:200, targetWorldX:200,
+    cameraX:0,
+    walking:false, walkT:0,
+    useSoldiers:false, useTank:false, pendingCb:null,
+  },
+
+  makeStars(n=80){
+    this.stars=[];
+    for(let i=0;i<n;i++)
+      this.stars.push({x:Math.random()*800,y:Math.random()*350,sz:Math.random()<.7?1:2,tw:Math.random()*Math.PI*2,sp:.5+Math.random()});
+  },
+  initInput(){
+    const toG=e=>{const r=canvas.getBoundingClientRect();return{x:(e.clientX-r.left)*800/r.width,y:(e.clientY-r.top)*500/r.height}};
+    canvas.addEventListener('mousemove',e=>{const p=toG(e);this.mouse.x=p.x;this.mouse.y=p.y});
+    canvas.addEventListener('click',e=>{const p=toG(e);for(const c of this.clickables){if(p.x>=c.x&&p.x<=c.x+c.w&&p.y>=c.y&&p.y<=c.y+c.h){c.fn();return}}});
+  },
+  addClick(x,y,w,h,fn){this.clickables.push({x,y,w,h,fn})},
+  clearClicks(){this.clickables=[]},
+  goto(name){if(!this.scenes[name])return;this.clearClicks();this.scene=this.scenes[name];if(this.scene.enter)this.scene.enter()},
+  fadeTo(name,dur=500){this.tr={active:true,dir:'out',alpha:0,dur,timer:0,cb:()=>{this.goto(name);this.fadeIn(dur)}};},
+  fadeIn(dur=500){this.tr={active:true,dir:'in',alpha:1,dur,timer:0,cb:null}},
+
+  startWalkTo(wx, cb){
+    const j=this.journey;
+    j.targetWorldX=wx; j.walking=true; j.pendingCb=cb;
+  },
+
+  // ── VẬT PHẨM TRÊN ĐƯỜNG ─────────────────────────────
+  // Chỉ lưu vị trí + item để render; không tự trigger callback
+  roadItem:{active:false, worldX:0, item:null},
+
+  // ── QUIZ LOGIC ──────────────────────────────────────
+  submitPlayerInfo(){
+    const name=(document.getElementById('pinfoName').value||'').trim();
+    const pos =(document.getElementById('pinfoPos').value||'').trim();
+    const bu  =(document.getElementById('pinfoBU').value||'').trim();
+    const err = document.getElementById('pinfoError');
+    if(!name){err.textContent='⚠ Vui lòng nhập họ và tên!';return;}
+    if(!pos) {err.textContent='⚠ Vui lòng nhập vị trí làm việc!';return;}
+    err.textContent='';
+    this.playerInfo={name,position:pos,bu};
+    document.getElementById('playerInfoScreen').style.display='none';
+    this.fadeTo('GAME');
+  },
+
+  submitRecord(won){
+    const elapsed=Math.max(1,Math.floor((Date.now()-this.gameStartTime)/1000));
+    const rec={
+      name:this.playerInfo.name,
+      position:this.playerInfo.position,
+      bu:this.playerInfo.bu,
+      score:this.correctCount,
+      time:elapsed,
+      won:won,
+      date:new Date().toLocaleDateString('vi-VN')
+    };
+    fetch('/api/record',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(rec)}).catch(()=>{});
+  },
+
+  startGame(){
+    this.currentQ=0; this.inventory=[]; this.lastStage=0;
+    this.correctCount=0; this.gameStartTime=Date.now();
+    const j=this.journey;
+    j.worldX=CHECKPOINTS[0]; j.targetWorldX=CHECKPOINTS[0];
+    j.cameraX=Math.max(0,CHECKPOINTS[0]-HERO_SCR);
+    j.walking=false; j.walkT=0; j.useSoldiers=false; j.useTank=false; j.pendingCb=null;
+    // Đặt item Q1 lên đường ngay từ đầu
+    const q0=QUESTIONS[0];
+    this.roadItem = q0.item ? {active:true, worldX:CHECKPOINTS[0], item:q0.item} : {active:false};
+    this.showStageIntro(q0.stage, ()=>{
+      this.roadItem.active=false;
+      this.showQuestion();
+    });
+  },
+
+  showStageIntro(stageId,cb){
+    const s=STAGES.find(x=>x.id===stageId);
+    document.getElementById('stageNum').textContent=`${s.emoji} GIAI ĐOẠN ${s.id} / 5`;
+    document.getElementById('stageName').textContent=s.name.replace(/^[🟢🔵🟡🟣🔴]\s*GIAI ĐOẠN \d+:\s*/,'');
+    document.getElementById('stageName').style.color=s.color;
+    const el=document.getElementById('stageIntro');
+    el.style.display='flex';
+    document.getElementById('stageIntroBox').style.animation='none';
+    setTimeout(()=>{document.getElementById('stageIntroBox').style.animation='popIn .4s ease'},10);
+    setTimeout(()=>{el.style.display='none';if(cb)cb()},2400);
+  },
+
+  showQuestion(){
+    const q=QUESTIONS[this.currentQ];
+    const s=STAGES.find(x=>x.id===q.stage);
+    if(this.scene&&this.scene.setStageColor) this.scene.setStageColor(s.color);
+    document.getElementById('qStageLabel').textContent=`${s.emoji} ${s.name}  •  Câu ${this.currentQ+1} / ${QUESTIONS.length}`;
+    document.getElementById('qStageLabel').style.color=s.color;
+    document.getElementById('qText').textContent=q.q;
+    const grid=document.getElementById('qChoices');
+    grid.innerHTML='';
+    q.ch.forEach((ch,i)=>{
+      const btn=document.createElement('button');
+      btn.className='qbtn'; btn.textContent=ch;
+      btn.onclick=()=>this.handleAnswer(i);
+      grid.appendChild(btn);
+    });
+    document.getElementById('questionOverlay').style.display='flex';
+  },
+
+  handleAnswer(choiceIdx){
+    const q=QUESTIONS[this.currentQ];
+    const btns=document.querySelectorAll('.qbtn');
+    btns.forEach(b=>b.style.pointerEvents='none');
+    if(choiceIdx===q.ans){
+      this.correctCount++;
+      btns[choiceIdx].classList.add('correct');
+      document.getElementById('questionOverlay').style.display='none';
+      this.showCorrectFeedback(q);
+    } else {
+      btns[choiceIdx].classList.add('wrong');
+      btns[q.ans].classList.add('reveal');
+      setTimeout(()=>{
+        document.getElementById('questionOverlay').style.display='none';
+        this.showGameOver(q);
+      },1200);
+    }
+  },
+
+  showCorrectFeedback(q){
+    const fb=document.getElementById('resultFeedback');
+    document.getElementById('resultBox').className='correct-box';
+    document.getElementById('resultIcon').textContent='✅';
+    document.getElementById('resultTitle').textContent='Chính xác!';
+    document.getElementById('resultTitle').style.color='#2ecc71';
+    const imgDiv=document.getElementById('resultItemImg');
+    const imgEl=document.getElementById('resultItemImgEl');
+    if(q.item){
+      document.getElementById('resultDetail').textContent='Bạn nhận được vật phẩm:';
+      document.getElementById('resultItemName').textContent=q.item.name;
+      document.getElementById('resultItemName').style.display='block';
+      // Hiện ảnh vật phẩm nếu có
+      const imgSrc=ITEM_IMAGES[q.item.name];
+      if(imgSrc){ imgEl.src=imgSrc; imgDiv.style.display='block'; }
+      else { imgDiv.style.display='none'; }
+      this.inventory.push(q.item);
+    } else {
+      document.getElementById('resultDetail').textContent='Kiến thức tốt! Tiếp tục nhé.';
+      document.getElementById('resultItemName').style.display='none';
+      imgDiv.style.display='none';
+    }
+    document.getElementById('resultContinueBtn').style.display='block';
+    fb.style.display='flex';
+  },
+
+  onResultContinue(){
+    document.getElementById('resultFeedback').style.display='none';
+    document.getElementById('resultItemImg').style.display='none';
+    // Sau câu 5 (index 4) → chuyển sang ảnh đoàn quân soldiers
+    if(this.currentQ===4){ this.journey.useSoldiers=true; this.journey.useTank=false; }
+    // Sau câu 6 (index 5) → chuyển sang xe tăng
+    if(this.currentQ===5){ this.journey.useTank=true; this.journey.useSoldiers=false; }
+    this.currentQ++;
+    if(this.currentQ>=QUESTIONS.length){
+      this.startWalkTo(2640,()=>this.endGame());
+      return;
+    }
+    const nextX=CHECKPOINTS[this.currentQ];
+    const nq=QUESTIONS[this.currentQ], pq=QUESTIONS[this.currentQ-1];
+    // Đặt item câu tiếp theo lên đường NGAY TRƯỚC KHI đi — nhân vật sẽ đi về phía nó
+    this.roadItem = nq.item ? {active:true, worldX:nextX, item:nq.item} : {active:false};
+    this.startWalkTo(nextX,()=>{
+      // Tới nơi → nhặt item (ẩn đi) → hiện câu hỏi
+      this.roadItem.active=false;
+      if(nq.stage!==pq.stage) this.showStageIntro(nq.stage,()=>this.showQuestion());
+      else this.showQuestion();
+    });
+  },
+
+  showGameOver(q){
+    this.submitRecord(false);
+    const elapsed=Math.max(1,Math.floor((Date.now()-this.gameStartTime)/1000));
+    const mm=String(Math.floor(elapsed/60)).padStart(2,'0'), ss=String(elapsed%60).padStart(2,'0');
+    document.getElementById('gameOverMsg').innerHTML=
+      `Câu hỏi: <em>${q.q}</em><br><br>Đáp án đúng là: <span class="correct-ans">${q.ch[q.ans]}</span><br><br>`+
+      `Đã trả lời đúng: <b style="color:#f4d03f">${this.correctCount}/${QUESTIONS.length} câu</b> &nbsp;•&nbsp; Thời gian: <b style="color:#f4d03f">${mm}:${ss}</b>`;
+    document.getElementById('gameOverScreen').style.display='flex';
+  },
+
+  restartGame(){
+    document.getElementById('gameOverScreen').style.display='none';
+    document.getElementById('questionOverlay').style.display='none';
+    document.getElementById('resultFeedback').style.display='none';
+    document.getElementById('finalInventory').style.display='none';
+    this.startGame();
+  },
+
+  endGame(){
+    document.getElementById('questionOverlay').style.display='none';
+    this.submitRecord(true);
+    this.fadeTo('FINAL');
+  },
+
+  loop(ts){
+    const dt=Math.min(ts-this.lastTime,80); this.lastTime=ts;
+    if(this.tr.active){
+      this.tr.timer+=dt;
+      const p=Math.min(this.tr.timer/this.tr.dur,1);
+      this.tr.alpha=this.tr.dir==='out'?p:1-p;
+      if(p>=1){this.tr.active=false;this.tr.alpha=0;const cb=this.tr.cb;this.tr.cb=null;if(cb)cb()}
+    }
+    if(this.scene){if(this.scene.update)this.scene.update(dt);ctx.clearRect(0,0,800,500);this.scene.render()}
+    if(this.tr.active&&this.tr.alpha>0){ctx.fillStyle=`rgba(0,0,0,${this.tr.alpha})`;ctx.fillRect(0,0,800,500)}
+    requestAnimationFrame(t=>this.loop(t));
+  },
+
+  init(){
+    this.makeStars(); this.initInput();
+    const load=(key,src)=>{
+      const img=new Image();
+      img.onload=()=>{this.imgLoaded++;if(this.imgLoaded>=this.imgTotal)this._onAllLoaded()};
+      img.onerror=()=>{this.imgLoaded++;if(this.imgLoaded>=this.imgTotal)this._onAllLoaded()};
+      img.src=src; this.imgs[key]=img;
+    };
+    load('cover','game image/cover image.jpeg');
+    load('bg1','game image/background image 1.jpeg');
+    load('bgEnd','game image/ending background 1.jpeg');
+    load('char','game image/character_transparent.png');
+    load('soldiers','game image/soldiers_transparent.png');
+    load('tank','game image/tank_transparent.png');
+    load('dinhDocLap','game image/dinh doc lap.jpeg');
+    load('ironGate','game image/iron gates_transparent.png');
+    load('op1','game image/opening 1.jpg');
+    load('op2','game image/opening 2.jpg');
+    // Preload ảnh vật phẩm cho road item (không tính imgTotal)
+    Object.entries(ITEM_IMAGES).forEach(([name,src])=>{
+      const img=new Image(); img.src=src;
+      this.itemImgCache[name]=img;
+    });
+  },
+  _onAllLoaded(){
+    document.getElementById('lbar').style.width='100%';
+    setTimeout(()=>{
+      document.getElementById('loadingScreen').style.display='none';
+      this.goto('INTRO');
+      requestAnimationFrame(t=>{this.lastTime=t;this.loop(t)});
+    },400);
+  },
+};
+
+// ═══════════════════════════════════════════════════════
+//  SCENE: INTRO – Opening cinematic (2 slides + typewriter)
+// ═══════════════════════════════════════════════════════
+G.scenes.INTRO = (function(){
+  const SLIDES = [
+    {
+      key:'op1',
+      text:'Mùa Xuân năm 1975 – thời khắc lịch sử đã chín muồi. Sau Hiệp định Paris 1973, cục diện chiến tranh thay đổi hoàn toàn: Mỹ rút quân, chính quyền Sài Gòn suy yếu, trong khi lực lượng cách mạng ngày càng lớn mạnh. Nắm bắt thời cơ, Đảng quyết định mở cuộc tổng tiến công chiến lược – với tinh thần thần tốc, táo bạo, bất ngờ, chắc thắng.',
+    },
+    {
+      key:'op2',
+      text:'Từ chiến thắng tạo đà tại Chiến thắng Phước Long, quân ta liên tiếp mở ba chiến dịch lớn: Tây Nguyên, Huế – Đà Nẵng, và đỉnh cao là Chiến dịch Hồ Chí Minh – tiến thẳng vào Sài Gòn.',
+    },
+  ];
+  const CHAR_MS   = 18;   // ms mỗi ký tự (nhanh hơn)
+  const PAUSE_MS  = 2200; // dừng sau khi gõ xong
+  const FADE_MS   = 500;  // fade in/out
+  const FONT_SZ   = 13;
+  const LINE_H    = 20;
+  const TEXT_X    = 30;
+  const TEXT_W    = 740;
+  const TEXT_Y0   = 320;  // bắt đầu vùng text (phía dưới ảnh)
+
+  // Pre-tính dòng cho một đoạn text
+  function calcLines(text){
+    ctx.font=`${FONT_SZ}px Rokkitt`;
+    const words=text.split(' '), lines=[];
+    let cur='';
+    for(const w of words){
+      const test=cur+(cur?' ':'')+w;
+      if(ctx.measureText(test).width>TEXT_W && cur){ lines.push(cur); cur=w; }
+      else cur=test;
+    }
+    if(cur) lines.push(cur);
+    return lines;
+  }
+
+  // Render text đến charIdx ký tự, với stroke viền
+  function drawTyped(lines, charIdx){
+    ctx.font=`600 ${FONT_SZ}px Rokkitt`;
+    ctx.textAlign='left';
+    let left=charIdx;
+    let y=TEXT_Y0;
+    for(const line of lines){
+      if(left<=0) break;
+      const vis=line.slice(0,left);
+      ctx.lineWidth=3.5;
+      ctx.strokeStyle='rgba(0,0,0,0.92)';
+      ctx.strokeText(vis, TEXT_X, y);
+      ctx.fillStyle='#f0e6c8';
+      ctx.fillText(vis, TEXT_X, y);
+      left-=line.length+1;
+      y+=LINE_H;
+    }
+  }
+
+  // Typewriter click – noise burst + low thump, nghe giống máy đánh chữ thật
+  function _playClick(ac){
+    try{
+      const t = ac.currentTime;
+      // Noise burst – tiếng lách tách cơ học
+      const nLen = Math.floor(ac.sampleRate * 0.045);
+      const nBuf = ac.createBuffer(1, nLen, ac.sampleRate);
+      const nd   = nBuf.getChannelData(0);
+      for(let i=0;i<nLen;i++) nd[i]=(Math.random()*2-1);
+      const nSrc = ac.createBufferSource();
+      nSrc.buffer = nBuf;
+      const bp = ac.createBiquadFilter();
+      bp.type='bandpass';
+      bp.frequency.value = 1800 + Math.random()*600;
+      bp.Q.value = 0.8;
+      const nG = ac.createGain();
+      nG.gain.setValueAtTime(0.55, t);
+      nG.gain.exponentialRampToValueAtTime(0.001, t+0.038);
+      nSrc.connect(bp); bp.connect(nG); nG.connect(ac.destination);
+      nSrc.start(t); nSrc.stop(t+0.045);
+      // Low thump – tiếng búa đập mặt giấy
+      const o=ac.createOscillator(), og=ac.createGain();
+      o.type='sine';
+      o.frequency.setValueAtTime(200+Math.random()*60, t);
+      o.frequency.exponentialRampToValueAtTime(55, t+0.04);
+      og.gain.setValueAtTime(0.35, t);
+      og.gain.exponentialRampToValueAtTime(0.001, t+0.05);
+      o.connect(og); og.connect(ac.destination);
+      o.start(t); o.stop(t+0.055);
+    }catch(e){}
+  }
+  function typeClick(){
+    const ac = window._gameAC;
+    if(!ac) return;
+    if(ac.state==='running'){ _playClick(ac); }
+    else if(ac.state==='suspended'){ ac.resume().then(()=>_playClick(ac)).catch(()=>{}); }
+  }
+
+  return {
+    slideIdx:0, charIdx:0, charTimer:0, phase:0, alpha:0, pauseT:0,
+    _lines:[], _totalChars:0, _transitioning:false,
+
+    _initSlide(){
+      this.charIdx=0; this.charTimer=0; this.phase=0;
+      this.alpha=0; this.pauseT=0;
+      this._lines = calcLines(SLIDES[this.slideIdx].text);
+      this._totalChars = SLIDES[this.slideIdx].text.length;
+    },
+
+    _handleClick(){
+      // Resume AudioContext nếu cần (browser policy)
+      if(window._gameAC && window._gameAC.state==='suspended') window._gameAC.resume();
+
+      if(this.phase===0){
+        // Bỏ qua fade in → bắt đầu gõ chữ luôn
+        this.alpha=1; this.phase=1;
+      } else if(this.phase===1){
+        // Hiện hết chữ ngay, chờ pause rồi tự chuyển
+        this.charIdx=this._totalChars;
+        this.phase=2; this.pauseT=0;
+      } else if(this.phase===2){
+        // Click trong lúc pause → chuyển slide ngay
+        this.pauseT=PAUSE_MS+1;
+      }
+      // phase 3 (fade out) → không can thiệp
+    },
+
+    enter(){
+      G.clearClicks();
+      this.slideIdx=0;
+      this._transitioning=false;
+      this._initSlide();
+      G.addClick(0,0,800,500,()=>this._handleClick());
+    },
+
+    update(dt){
+      if(this._transitioning) return;
+      if(this.phase===0){
+        // Auto fade-in ảnh
+        this.alpha=Math.min(1, this.alpha+dt/FADE_MS);
+        if(this.alpha>=1){ this.phase=1; }
+      } else if(this.phase===1){
+        // Gõ chữ tự động
+        this.charTimer+=dt;
+        const prev=this.charIdx;
+        this.charIdx=Math.min(this._totalChars, Math.floor(this.charTimer/CHAR_MS));
+        if(this.charIdx>prev && this.charIdx<this._totalChars) typeClick();
+        if(this.charIdx>=this._totalChars){ this.phase=2; this.pauseT=0; }
+      } else if(this.phase===2){
+        this.pauseT+=dt;
+        if(this.pauseT>=PAUSE_MS){ this.phase=3; }
+      } else if(this.phase===3){
+        this.alpha=Math.max(0, this.alpha-dt/FADE_MS);
+        if(this.alpha<=0){
+          this.slideIdx++;
+          if(this.slideIdx>=SLIDES.length){
+            this._transitioning=true;
+            G.fadeTo('MENU'); return;
+          }
+          this._initSlide();
+        }
+      }
+    },
+
+    render(){
+      ctx.fillStyle='#000'; ctx.fillRect(0,0,800,500);
+      // Guard: khi đang transition thì không render slide nữa
+      if(this._transitioning || this.slideIdx>=SLIDES.length) return;
+      const img=G.imgs[SLIDES[this.slideIdx].key];
+      if(img && img.complete){
+        ctx.globalAlpha=this.alpha;
+        try{ ctx.drawImage(img,0,0,800,500); }catch(e){}
+        ctx.globalAlpha=1;
+      }
+
+      if(this.phase>=1){
+        // Overlay gradient phía dưới cho chữ dễ đọc hơn
+        const grd=ctx.createLinearGradient(0,TEXT_Y0-40,0,500);
+        grd.addColorStop(0,'rgba(0,0,0,0)');
+        grd.addColorStop(0.3,'rgba(0,0,0,0.75)');
+        grd.addColorStop(1,'rgba(0,0,0,0.92)');
+        const gA=Math.min(1,this.charTimer/250);
+        if(gA>0){ ctx.globalAlpha=gA; ctx.fillStyle=grd; ctx.fillRect(0,TEXT_Y0-40,800,500-(TEXT_Y0-40)); ctx.globalAlpha=1; }
+        drawTyped(this._lines, this.charIdx);
+      }
+
+      // Gợi ý click
+      const skipA=Math.min(1,(this.charTimer||this.pauseT||1)/800)*0.55;
+      ctx.globalAlpha=skipA;
+      const hint = this.phase===2 ? '[ Nhấn để tiếp tục ]' : '[ Nhấn để hiện hết chữ ]';
+      P.text(hint, 400, 487, '#aaa', 11, 'center');
+      ctx.globalAlpha=1;
+
+      // Chỉ số slide
+      P.text(`${this.slideIdx+1} / ${SLIDES.length}`,780,18,'#555',11,'right');
+    },
+  };
+})();
+
+// ═══════════════════════════════════════════════════════
+//  SCENE: MENU
+// ═══════════════════════════════════════════════════════
+G.scenes.MENU = {
+  t:0,
+  enter(){this.t=0;G.clearClicks();
+    if(window._startMusic) window._startMusic();
+    G.addClick(270,330,260,58,()=>{
+      document.getElementById('pinfoName').value='';
+      document.getElementById('pinfoPos').value='';
+      document.getElementById('pinfoBU').value='';
+      document.getElementById('pinfoError').textContent='';
+      document.getElementById('playerInfoScreen').style.display='flex';
+      setTimeout(()=>document.getElementById('pinfoName').focus(),100);
+    });
+    G.addClick(320,405,160,30,()=>G.fadeTo('CREDITS'));
+    G.addClick(290,445,220,30,()=>G.fadeTo('LEADERBOARD'));
+  },
+  update(dt){this.t+=dt;for(const s of G.stars)s.tw+=dt*.003*s.sp},
+  render(){
+    if(G.imgs.cover&&G.imgs.cover.complete&&G.imgs.cover.naturalWidth){
+      ctx.drawImage(G.imgs.cover,0,0,800,500);
+    } else {
+      P.grad(0,0,800,500,[[0,'#0a0520'],[.5,'#1a0a40'],[1,'#8B2500']]);
+    }
+    ctx.fillStyle='rgba(0,0,0,.45)';ctx.fillRect(0,0,800,500);
+    for(const s of G.stars){const a=.4+.4*Math.sin(s.tw);ctx.fillStyle=`rgba(255,255,200,${a})`;ctx.fillRect(s.x,s.y,s.sz,s.sz)}
+    ctx.fillStyle='rgba(0,0,0,.7)';ctx.fillRect(120,120,560,200);
+    ctx.strokeStyle='#DA251D';ctx.lineWidth=3;ctx.strokeRect(120,120,560,200);
+    [[120,120],[680,120],[120,320],[680,320]].forEach(([x,y])=>{ctx.fillStyle='#f4d03f';ctx.fillRect(x-4,y-4,8,8)});
+    ctx.shadowColor='#DA251D';ctx.shadowBlur=20;
+    P.text('GIẢI PHÓNG MIỀN NAM',400,178,'#DA251D',28,'center');
+    ctx.shadowBlur=0;
+    P.text('30 / 4 / 1975',400,215,'#f4d03f',20,'center');
+    P.text('Game Kỉ Niệm – TNT Group',400,248,'#aaa',13,'center');
+    const bh=G.mouse.x>=270&&G.mouse.x<=530&&G.mouse.y>=330&&G.mouse.y<=388;
+    ctx.fillStyle=bh?'#DA251D':'rgba(218,37,29,.15)';ctx.fillRect(270,330,260,58);
+    ctx.strokeStyle=bh?'#fff':'#DA251D';ctx.lineWidth=2;ctx.strokeRect(270,330,260,58);
+    P.text('▶  BẮT ĐẦU NHIỆM VỤ',400,367,bh?'#fff':'#f4d03f',16,'center');
+    const ch=G.mouse.x>=320&&G.mouse.x<=480&&G.mouse.y>=405&&G.mouse.y<=435;
+    P.text('✦ Credits ✦',400,424,ch?'#f4d03f':'#666',13,'center');
+    const lh=G.mouse.x>=290&&G.mouse.x<=510&&G.mouse.y>=445&&G.mouse.y<=475;
+    P.text('🏆 Bảng Xếp Hạng',400,463,lh?'#fff':'#888',13,'center');
+    P.text(`${QUESTIONS.length} câu hỏi  •  5 giai đoạn  •  ${QUESTIONS.filter(q=>q.item).length} vật phẩm`,400,492,'#444',12,'center');
+  }
+};
+
+// ═══════════════════════════════════════════════════════
+//  SCENE: GAME – Scrolling World
+// ═══════════════════════════════════════════════════════
+G.scenes.GAME = {
+  t:0, stageColor:'#27ae60',
+
+  enter(){
+    this.t=0; G.clearClicks();
+    setTimeout(()=>G.startGame(),200);
+  },
+  setStageColor(c){this.stageColor=c},
+
+  update(dt){
+    this.t+=dt;
+    const j=G.journey;
+
+    // ── Di chuyển nhân vật ──────────────────────────
+    if(j.walking){
+      j.walkT += dt * .008;
+      // Tốc độ: ~0.063px/ms → 190px ≈ 3 giây; tank nhanh hơn chút
+      const spd = dt * (j.useTank ? 0.082 : 0.063);
+      j.worldX = Math.min(j.worldX + spd, j.targetWorldX);
+      if(j.worldX >= j.targetWorldX){
+        j.walking = false;
+        if(j.pendingCb){ const cb=j.pendingCb; j.pendingCb=null; cb(); }
+      }
+    }
+
+    // ── Camera smooth follow ────────────────────────
+    const targetCam = Math.max(0, Math.min(j.worldX - HERO_SCR, WORLD_W - 800));
+    j.cameraX += (targetCam - j.cameraX) * Math.min(1, dt * 0.014);
+
+  },
+
+  render(){
+    const j=G.journey, t=this.t;
+    const cam=j.cameraX;
+
+    // ── WORLD LAYER – bg1 tile + road + Dinh ─────────
+    ctx.save();
+    ctx.translate(-cam, 0);
+
+    // ① Background chia 2 vùng theo hành trình
+    // Vùng 1 (0 → 1650): bg1 – rừng, đoàn quân tiến vào thành phố
+    // Vùng 2 (1650 → WORLD_W): ending background – xe tăng 390 húc cổng Dinh Độc Lập
+    const BG_SPLIT = 1650;
+    if(G.imgs.bg1 && G.imgs.bg1.complete && G.imgs.bg1.naturalWidth){
+      const iw=G.imgs.bg1.naturalWidth, ih=G.imgs.bg1.naturalHeight;
+      ctx.drawImage(G.imgs.bg1, 0,0, iw,ih, 0, 30, BG_SPLIT, 390);
+    } else {
+      ctx.fillStyle='#2d7a18'; ctx.fillRect(0,30,BG_SPLIT,390);
+    }
+    if(G.imgs.bgEnd && G.imgs.bgEnd.complete && G.imgs.bgEnd.naturalWidth){
+      const iw=G.imgs.bgEnd.naturalWidth, ih=G.imgs.bgEnd.naturalHeight;
+      ctx.drawImage(G.imgs.bgEnd, 0,0, iw,ih, BG_SPLIT, 30, WORLD_W-BG_SPLIT, 390);
+    } else {
+      ctx.fillStyle='#1a3a10'; ctx.fillRect(BG_SPLIT,30,WORLD_W-BG_SPLIT,390);
+    }
+
+    // ② Dải đường chạy xuyên suốt thế giới
+    // Nền tối dưới đường để tách khỏi bg
+    ctx.fillStyle='rgba(0,0,0,.28)'; ctx.fillRect(0,410,WORLD_W,90);
+    // Mặt đường nhựa
+    ctx.fillStyle='#3e3e3e'; ctx.fillRect(0,422,WORLD_W,52);
+    // Vạch kẻ đường
+    ctx.setLineDash([28,22]); ctx.strokeStyle='rgba(255,255,180,.32)'; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.moveTo(0,448); ctx.lineTo(WORLD_W,448); ctx.stroke();
+    ctx.setLineDash([]);
+    // Lề đường
+    ctx.fillStyle='#555'; ctx.fillRect(0,420,WORLD_W,4);
+    ctx.fillStyle='#555'; ctx.fillRect(0,470,WORLD_W,4);
+    // Dải tiền cảnh
+    ctx.fillStyle='rgba(0,0,0,.45)'; ctx.fillRect(0,472,WORLD_W,30);
+
+    // ③ (Dinh Độc Lập đã được thay bằng ảnh ending background – không cần tự vẽ nữa)
+
+    // ④ Vật phẩm trên đường – xuất hiện ngay sau câu hỏi trước, nhân vật đi đến thì biến mất
+    const ri=G.roadItem;
+    if(ri.active && ri.item){
+      const ix=ri.worldX, iy=400;
+      const pulse=0.75+0.25*Math.sin(t*.007);
+      const bounce=Math.sin(t*.005)*6;
+      const sz=56;
+
+      ctx.save();
+      // Hào quang vàng phát sáng
+      const grd=ctx.createRadialGradient(ix,iy+bounce,sz*0.3,ix,iy+bounce,sz*1.15);
+      grd.addColorStop(0,`rgba(255,230,0,${0.75*pulse})`);
+      grd.addColorStop(0.5,`rgba(255,180,0,${0.35*pulse})`);
+      grd.addColorStop(1,'rgba(255,150,0,0)');
+      ctx.fillStyle=grd;
+      ctx.beginPath(); ctx.arc(ix,iy+bounce,sz*1.15,0,Math.PI*2); ctx.fill();
+
+      // Ảnh vật phẩm thật
+      const itemImg=G.itemImgCache[ri.item.name];
+      if(itemImg && itemImg.complete && itemImg.naturalWidth){
+        ctx.shadowColor='#f4d03f'; ctx.shadowBlur=22;
+        ctx.drawImage(itemImg, ix-sz/2, iy+bounce-sz/2, sz, sz);
+        ctx.shadowBlur=0;
+      }
+
+      // Tên vật phẩm bên dưới
+      ctx.font=`bold 11px 'Rokkitt',serif`;
+      ctx.textAlign='center'; ctx.textBaseline='top';
+      ctx.fillStyle=`rgba(255,230,80,0.95)`;
+      ctx.shadowColor='#000'; ctx.shadowBlur=5;
+      ctx.fillText(ri.item.name, ix, iy+bounce+sz/2+4);
+      ctx.shadowBlur=0;
+
+      // Tia sáng xoay
+      for(let s=0;s<8;s++){
+        const sa=(s/8)*Math.PI*2+t*.003;
+        const sr=sz*0.9+Math.sin(t*.007+s)*5;
+        ctx.globalAlpha=0.6*pulse;
+        ctx.fillStyle='#ffe040';
+        ctx.fillRect(ix+Math.cos(sa)*sr-2, iy+bounce+Math.sin(sa)*sr*0.6-2, 4, 4);
+      }
+      ctx.globalAlpha=1;
+      ctx.restore();
+    }
+
+    ctx.restore(); // ── kết thúc world layer ──
+
+    // ── NHÂN VẬT / XE TĂNG (screen space) ───────────
+    const heroScrX = j.worldX - cam;
+    const heroY = 422;
+
+    if(j.useTank){
+      // ── Giai đoạn 3: Xe tăng 390 ──────────────────────
+      // Crop vùng xe trong file 1024×1024 (rows 256-767, cols 5-1018)
+      const TSX=5,TSY=256,TSW=1013,TSH=511;
+      const th=100, tw=Math.round(TSW*(th/TSH)); // ~198×100px
+      if(G.imgs.tank && G.imgs.tank.complete && G.imgs.tank.naturalWidth){
+        if(j.walking){
+          for(let d=0;d<4;d++){
+            const da=((t*.0028+d*.32)%1);
+            ctx.fillStyle=`rgba(165,145,105,${0.35*(1-da)})`;
+            ctx.beginPath(); ctx.arc(heroScrX-tw/2-da*32, heroY-da*8, 2+da*10, 0,Math.PI*2); ctx.fill();
+          }
+        }
+        ctx.drawImage(G.imgs.tank, TSX,TSY,TSW,TSH, heroScrX-tw/2, heroY-th, tw, th);
+      } else {
+        drawJourneyTank(heroScrX, heroY, t, j.walking);
+      }
+    } else if(j.useSoldiers){
+      // ── Giai đoạn 2: Đoàn quân tiến vào ──────────────
+      // Crop vùng nội dung trong file 1920×1080 (rows 154-959, cols 318-1562)
+      const SSX=318,SSY=154,SSW=1244,SSH=805;
+      const sh=120, sw=Math.round(SSW*(sh/SSH)); // ~185×120px
+      const bob = j.walking ? Math.sin(j.walkT*6)*1.8 : 0;
+      if(G.imgs.soldiers && G.imgs.soldiers.complete && G.imgs.soldiers.naturalWidth){
+        ctx.drawImage(G.imgs.soldiers, SSX,SSY,SSW,SSH, heroScrX-sw/2, heroY-sh+bob, sw, sh);
+      }
+    } else {
+      // ── Giai đoạn 1: Nhân vật Linh ────────────────────
+      const pose = j.walking ? 'walk' : 'flag';
+      const bob = j.walking ? Math.sin(j.walkT*8)*2.8 : 0;
+      if(G.imgs.char && G.imgs.char.complete && G.imgs.char.naturalWidth){
+        const s=CHAR_SPRITES[pose];
+        const h=130, w=Math.round(s.sw*(h/s.sh));
+        ctx.drawImage(G.imgs.char, s.sx,s.sy,s.sw,s.sh, heroScrX-w/2, heroY-h+bob, w, h);
+      }
+    }
+
+    // ── HUD ─────────────────────────────────────────
+    P.rect(0,0,800,32,'rgba(0,0,0,.82)');
+    const hprog=G.currentQ/QUESTIONS.length;
+    P.rect(0,30, 800*hprog, 3, this.stageColor);
+    P.rect(0,30, 800, 3, 'rgba(255,255,255,.06)');
+    P.text('🗺️ Hành trình giải phóng', 12, 22, '#aaa', 12);
+    P.text(`Câu ${Math.min(G.currentQ+1,QUESTIONS.length)} / ${QUESTIONS.length}`, 792, 22, '#f4d03f', 13, 'right');
+    const cnt=G.inventory.length, tot=QUESTIONS.filter(q=>q.item).length;
+    P.text(`🎁 ${cnt}/${tot}`, 400, 22, '#f4d03f', 13, 'center');
+
+    // Tint nhẹ theo giai đoạn
+    ctx.fillStyle=`${this.stageColor}12`; ctx.fillRect(0,0,800,500);
+  },
+};
+
+// ═══════════════════════════════════════════════════════
+//  SCENE: FINAL – Xe tăng húc cổng + Treo cờ
+// ═══════════════════════════════════════════════════════
+G.scenes.FINAL = {
+  t:0, phase:0, tankX:0, gateAngle:0, confetti:[],
+
+  // Vị trí cổng sắt trên canvas – khớp với hàng rào đáy ảnh dinh doc lap
+  GX:288, GY:348, GW:224, GH:108,
+  // Crop vùng nội dung trong file iron gates mới (2560×1440, gate lấp đầy toàn ảnh)
+  GSX:0, GSY:0, GSW:2560, GSH:1440,
+
+  enter(){
+    this.t=0; this.phase=0; this.tankX=-200; this.gateAngle=0;
+    this._invShown=false; this._btnReg=false;
+    document.getElementById('finalInventory').style.display='none';
+    G.clearClicks();
+    this.confetti=[];
+    for(let i=0;i<150;i++) this.confetti.push({
+      x:Math.random()*800, y:-Math.random()*500,
+      vy:1.2+Math.random()*3, vx:(Math.random()-.5)*2.5,
+      c:['#DA251D','#FFFF00','#27ae60','#fff','#f4d03f','#ff6b35'][i%6],
+      sz:5+Math.random()*9, rot:Math.random()*Math.PI*2, rs:(Math.random()-.5)*.2,
+    });
+    setTimeout(()=>{this.phase=1}, 400);
+    setTimeout(()=>{this.phase=2}, 3800); // tank đâm vào cổng
+    setTimeout(()=>{this.phase=3}, 6000); // màn chiến thắng
+    setTimeout(()=>G.fadeTo('CREDITS'), 14000); // auto credits
+  },
+
+  update(dt){
+    this.t+=dt;
+    for(const p of this.confetti){
+      p.y+=p.vy; p.x+=p.vx; p.rot+=p.rs;
+      if(p.y>520){p.y=-12; p.x=Math.random()*800}
+    }
+    // Tank tiến vào, dừng khi đã đâm vào cổng
+    if(this.phase>=1 && this.tankX<310) this.tankX += dt*0.13;
+    // Cổng đổ ra hai phía khi bị húc
+    if(this.phase>=2 && this.gateAngle < Math.PI*0.55) this.gateAngle += dt*0.0022;
+  },
+
+  render(){
+    const {GX,GY,GW,GH,GSX,GSY,GSW,GSH}=this;
+
+    // ① Dinh Độc Lập làm nền – luôn vẽ full canvas
+    let bgDrawn = false;
+    if(G.imgs.dinhDocLap){ try{ ctx.drawImage(G.imgs.dinhDocLap,0,0,800,500); bgDrawn=true; }catch(e){} }
+    if(!bgDrawn) P.grad(0,0,800,500,[[0,'#1a0a3a'],[0.5,'#2d1a5e'],[1,'#0a2a1a']]);
+
+    // ② Cổng sắt với hiệu ứng đổ ra hai phía
+    if(G.imgs.ironGate && G.imgs.ironGate.complete && G.imgs.ironGate.naturalWidth){
+      const hw=GW/2; // nửa chiều rộng mỗi cánh
+      const fall=Math.min(1, this.gateAngle/(Math.PI*0.55));
+
+      // Cánh trái – đổ sang trái (xoay ngược chiều kim)
+      ctx.save();
+      ctx.translate(GX, GY+GH);           // pivot: góc dưới trái
+      ctx.rotate(-this.gateAngle*0.85);
+      ctx.globalAlpha = 1-fall*0.15;
+      ctx.drawImage(G.imgs.ironGate, GSX, GSY, GSW/2, GSH, 0,-GH, hw, GH);
+      ctx.restore();
+
+      // Cánh phải – đổ sang phải (xoay thuận chiều kim)
+      ctx.save();
+      ctx.translate(GX+GW, GY+GH);        // pivot: góc dưới phải
+      ctx.rotate(this.gateAngle*0.85);
+      ctx.globalAlpha = 1-fall*0.15;
+      ctx.drawImage(G.imgs.ironGate, GSX+GSW/2, GSY, GSW/2, GSH, -hw,-GH, hw, GH);
+      ctx.restore();
+
+      ctx.globalAlpha=1;
+    }
+
+    // ③ Bụi / nổ khi cổng đổ
+    if(this.gateAngle>0.05){
+      const imp=Math.min(1, this.gateAngle/0.8);
+      const cx2=GX+GW/2, cy2=GY+GH;
+      // Bụi đất lan rộng
+      const dustGrd=ctx.createRadialGradient(cx2,cy2,0,cx2,cy2,90*imp);
+      dustGrd.addColorStop(0,`rgba(200,150,80,${0.7*imp})`);
+      dustGrd.addColorStop(1,'rgba(200,150,80,0)');
+      ctx.fillStyle=dustGrd; ctx.beginPath(); ctx.arc(cx2,cy2,90*imp,0,Math.PI*2); ctx.fill();
+      // Flash sáng khi va chạm ban đầu
+      if(imp<0.4){
+        const fi=1-imp/0.4;
+        ctx.fillStyle=`rgba(255,220,80,${fi*0.55})`;
+        ctx.beginPath(); ctx.arc(cx2,cy2-30,55*fi,0,Math.PI*2); ctx.fill();
+      }
+    }
+
+    // ④ Xe tăng 390
+    const TSX=5,TSY=256,TSW=1013,TSH=511;
+    const fth=105, ftw=Math.round(TSW*(fth/TSH));
+    const roadY=438;
+    if(this.phase>=1 && G.imgs.tank && G.imgs.tank.complete && G.imgs.tank.naturalWidth){
+      ctx.drawImage(G.imgs.tank, TSX,TSY,TSW,TSH, this.tankX-ftw/2, roadY-fth, ftw, fth);
+    }
+
+    // ⑤ Nhân vật Linh giơ cờ (phase 2 trở đi, bên phải)
+    if(this.phase>=2 && G.imgs.char && G.imgs.char.complete && G.imgs.char.naturalWidth){
+      const s=CHAR_SPRITES.flag; const ch=140, cw=Math.round(s.sw*(ch/s.sh));
+      ctx.drawImage(G.imgs.char,s.sx,s.sy,s.sw,s.sh, 620-cw/2, roadY-ch, cw, ch);
+    }
+
+    // ⑥ Confetti & pháo hoa (phase 2+)
+    if(this.phase>=2){
+      for(const p of this.confetti){
+        ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.rot);
+        ctx.fillStyle=p.c; ctx.fillRect(-p.sz/2,-p.sz/4,p.sz,p.sz/2);
+        ctx.restore();
+      }
+      this.drawFireworks();
+    }
+
+    // ⑦ Banner "Xe tăng 390 húc đổ cổng!" flash ngắn
+    if(this.phase>=2 && this.t < 5500){
+      const elapsed = this.t - (this.phase>=2 ? 0 : 9999);
+      const al = Math.min(1,this.t/300) * (1-Math.max(0,(this.t-4500)/600));
+      if(al>0){
+        ctx.save(); ctx.globalAlpha=Math.max(0,al);
+        ctx.fillStyle='rgba(180,20,20,.88)'; ctx.fillRect(140,195,520,46);
+        ctx.strokeStyle='#f4d03f'; ctx.lineWidth=2; ctx.strokeRect(140,195,520,46);
+        P.text('💥 XE TĂNG 390 HÚC ĐỔ CỔNG DINH ĐỘC LẬP!',400,225,'#FFFF00',14,'center');
+        ctx.restore();
+      }
+    }
+
+    // ⑧ Màn chiến thắng (phase 3)
+    if(this.phase>=3){
+      const ta=Math.min(1,(this.t-5800)/700);
+      ctx.save(); ctx.globalAlpha=ta;
+      ctx.fillStyle='rgba(0,0,0,.72)'; ctx.fillRect(70,130,660,240);
+      ctx.strokeStyle='#f4d03f'; ctx.lineWidth=3; ctx.strokeRect(70,130,660,240);
+      ctx.shadowColor='#f4d03f'; ctx.shadowBlur=22;
+      P.text('🇻🇳  VIỆT NAM HOÀN TOÀN GIẢI PHÓNG!',400,172,'#FFFF00',18,'center');
+      ctx.shadowBlur=0;
+      P.text('30 tháng 4 năm 1975',400,200,'#f4d03f',15,'center');
+      P.text(`Đã thu thập: ${G.inventory.length} vật phẩm`,400,340,'#aaa',12,'center');
+      ctx.restore();
+
+      // Overlay vật phẩm HTML
+      if(!this._invShown){
+        this._invShown=true;
+        const el=document.getElementById('finalInventory');
+        el.innerHTML=G.inventory.map(item=>{
+          const src=ITEM_IMAGES[item.name]||'';
+          return src
+            ?`<div class="finv-item"><img src="${src}" alt="${item.name}"><span>${item.name}</span></div>`
+            :`<div class="finv-item"><span style="font-size:22px">${item.emoji}</span><span>${item.name}</span></div>`;
+        }).join('');
+        el.style.display='flex'; el.style.opacity=0; el.style.transition='opacity .7s';
+        setTimeout(()=>{el.style.opacity=String(ta)},60);
+      }
+
+      // Nút Chơi Lại + Credits + Xếp Hạng – căn giữa 3 nút trên 800px
+      // 3 nút × 168px + 2 khoảng × 16px = 536px → left = (800-536)/2 = 132
+      const B1x=132,B2x=316,B3x=500, By=434, Bw=168, Bh=48;
+      const bh=G.mouse.x>=B1x&&G.mouse.x<=B1x+Bw&&G.mouse.y>=By&&G.mouse.y<=By+Bh;
+      const bc=G.mouse.x>=B2x&&G.mouse.x<=B2x+Bw&&G.mouse.y>=By&&G.mouse.y<=By+Bh;
+      const bl=G.mouse.x>=B3x&&G.mouse.x<=B3x+Bw&&G.mouse.y>=By&&G.mouse.y<=By+Bh;
+      ctx.save(); ctx.globalAlpha=ta;
+      // Btn 1 – Chơi lại
+      ctx.fillStyle=bh?'#DA251D':'rgba(218,37,29,.2)'; ctx.fillRect(B1x,By,Bw,Bh);
+      ctx.strokeStyle=bh?'#fff':'#DA251D'; ctx.lineWidth=2; ctx.strokeRect(B1x,By,Bw,Bh);
+      P.text('🔄 Chơi Lại',B1x+Bw/2,By+30,bh?'#fff':'#f4d03f',13,'center');
+      // Btn 2 – Credits
+      ctx.fillStyle=bc?'#f4d03f':'rgba(244,208,63,.15)'; ctx.fillRect(B2x,By,Bw,Bh);
+      ctx.strokeStyle=bc?'#000':'#f4d03f'; ctx.lineWidth=2; ctx.strokeRect(B2x,By,Bw,Bh);
+      P.text('📜 Credits',B2x+Bw/2,By+30,bc?'#000':'#f4d03f',13,'center');
+      // Btn 3 – Xếp hạng
+      ctx.fillStyle=bl?'#27ae60':'rgba(39,174,96,.15)'; ctx.fillRect(B3x,By,Bw,Bh);
+      ctx.strokeStyle=bl?'#fff':'#27ae60'; ctx.lineWidth=2; ctx.strokeRect(B3x,By,Bw,Bh);
+      P.text('🏆 Xếp Hạng',B3x+Bw/2,By+30,bl?'#fff':'#2ecc71',13,'center');
+      ctx.restore();
+      if(!this._btnReg){ this._btnReg=true;
+        G.addClick(B1x,By,Bw,Bh,()=>G.fadeTo('MENU'));
+        G.addClick(B2x,By,Bw,Bh,()=>G.fadeTo('CREDITS'));
+        G.addClick(B3x,By,Bw,Bh,()=>G.fadeTo('LEADERBOARD'));
+      }
+    }
+    P.rect(0,0,240,28,'rgba(0,0,0,.65)');
+    P.text('🏛️  Dinh Độc Lập – 30/4/1975',8,20,'#f4d03f',13);
+  },
+  drawFireworks(){
+    [[120,100],[640,90],[250,60],[560,110],[380,80]].forEach(([fx,fy],i)=>{
+      const off=(this.t*.002+i*1.3)%(Math.PI*2);
+      for(let r=0;r<12;r++){
+        const ang=(r/12)*Math.PI*2+off*.1,dist=38+20*Math.abs(Math.sin(off+r));
+        ctx.fillStyle=['#DA251D','#FFFF00','#f4d03f','#fff','#27ae60'][r%5];
+        ctx.globalAlpha=.4+.5*Math.abs(Math.sin(off+r*.3));
+        ctx.fillRect(fx+Math.cos(ang)*dist,fy+Math.sin(ang)*dist,3,3);
+      }
+      ctx.globalAlpha=1;
+    });
+  },
+};
+
+// ═══════════════════════════════════════════════════════
+//  SCENE: LEADERBOARD – Top 10
+// ═══════════════════════════════════════════════════════
+G.scenes.LEADERBOARD = {
+  t:0, rows:[], loading:true, errMsg:'',
+  enter(){
+    this.t=0; this.loading=true; this.rows=[]; this.errMsg='';
+    G.clearClicks();
+    G.addClick(10,10,100,34,()=>G.fadeTo('MENU'));
+    fetch('/api/leaderboard')
+      .then(r=>r.json())
+      .then(data=>{ this.rows=data||[]; this.loading=false; })
+      .catch(()=>{ this.errMsg='Không thể tải dữ liệu'; this.loading=false; });
+  },
+  update(dt){ this.t+=dt; },
+  render(){
+    const t=this.t;
+    // Nền
+    P.grad(0,0,800,500,[[0,'#020a1a'],[1,'#05101e']]);
+    // Stars
+    for(const s of G.stars){const a=.3+.3*Math.sin(s.tw+t*.002);ctx.fillStyle=`rgba(255,255,200,${a})`;ctx.fillRect(s.x,s.y,s.sz,s.sz)}
+
+    // Back btn
+    const bk=G.mouse.x>=10&&G.mouse.x<=110&&G.mouse.y>=10&&G.mouse.y<=44;
+    ctx.fillStyle=bk?'rgba(255,255,255,.15)':'rgba(255,255,255,.05)'; ctx.fillRect(10,10,100,34);
+    ctx.strokeStyle='#555'; ctx.lineWidth=1; ctx.strokeRect(10,10,100,34);
+    P.text('◀ Quay lại',60,32,'#aaa',12,'center');
+
+    // Tiêu đề
+    ctx.shadowColor='#f4d03f'; ctx.shadowBlur=18;
+    P.text('🏆  BẢNG XẾP HẠNG',400,52,'#f4d03f',22,'center');
+    ctx.shadowBlur=0;
+    P.text('Top 10 người chơi xuất sắc nhất',400,80,'#888',13,'center');
+
+    if(this.loading){
+      const dot='.'.repeat(1+Math.floor(t/400)%3);
+      P.text('Đang tải'+dot,400,260,'#666',15,'center');
+      return;
+    }
+    if(this.errMsg){
+      P.text(this.errMsg,400,260,'#e74c3c',14,'center');
+      P.text('(Vui lòng kiểm tra kết nối)',400,286,'#666',12,'center');
+      return;
+    }
+    if(this.rows.length===0){
+      P.text('Chưa có ai chơi – hãy là người đầu tiên!',400,260,'#555',14,'center');
+      return;
+    }
+
+    // Header bảng
+    const cols=[34,140,310,460,580,700];
+    const hy=112;
+    ctx.fillStyle='rgba(244,208,63,.12)'; ctx.fillRect(20,hy,760,26);
+    ctx.strokeStyle='rgba(244,208,63,.3)'; ctx.lineWidth=1; ctx.strokeRect(20,hy,760,26);
+    ['#','Họ và Tên','Vị Trí','BU','Điểm','T.Gian'].forEach((h,i)=>{
+      P.text(h,cols[i],hy+17,'#f4d03f',11,'center');
+    });
+
+    // Rows
+    const medals=['🥇','🥈','🥉'];
+    this.rows.slice(0,10).forEach((r,i)=>{
+      const y=148+i*33;
+      const isMe = r.name===G.playerInfo.name && r.position===G.playerInfo.position;
+      ctx.fillStyle=isMe?'rgba(39,174,96,.18)':(i%2===0?'rgba(255,255,255,.03)':'transparent');
+      ctx.fillRect(20,y-14,760,30);
+      if(isMe){ctx.strokeStyle='rgba(39,174,96,.4)';ctx.lineWidth=1;ctx.strokeRect(20,y-14,760,30);}
+
+      const rank=i<3?medals[i]:String(i+1);
+      const mm=String(Math.floor((r.time||0)/60)).padStart(2,'0');
+      const ss=String((r.time||0)%60).padStart(2,'0');
+      const nameColor=i===0?'#FFFF00':i<3?'#f4d03f':isMe?'#2ecc71':'#ddd';
+      const scoreColor=r.won?'#2ecc71':'#e67e22';
+      P.text(rank,       cols[0],y,'#aaa',i<3?13:12,'center');
+      P.text(r.name||'?',cols[1],y,nameColor,12,'center');
+      P.text((r.position||'').substring(0,20),cols[2],y,'#aaa',11,'center');
+      P.text((r.bu||'–').substring(0,14),     cols[3],y,'#888',11,'center');
+      P.text(`${r.score||0}/${QUESTIONS.length}`,cols[4],y,scoreColor,13,'center');
+      P.text(`${mm}:${ss}`,cols[5],y,'#66aaff',12,'center');
+    });
+
+    // Đường kẻ dưới cùng
+    ctx.strokeStyle='rgba(255,255,255,.08)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(20,480); ctx.lineTo(780,480); ctx.stroke();
+    P.text('Xếp theo: điểm cao nhất  •  cùng điểm thì thời gian ít hơn thắng',400,492,'#444',11,'center');
+  },
+};
+
+// ═══════════════════════════════════════════════════════
+//  SCENE: CREDITS
+// ═══════════════════════════════════════════════════════
+G.scenes.CREDITS = {
+  t:0, scrollY:520,
+  enter(){this.t=0;this.scrollY=520;G.clearClicks();
+    G.addClick(0,0,800,500,()=>G.fadeTo('MENU'));
+    G.addClick(290,460,220,34,()=>G.fadeTo('LEADERBOARD'));
+  },
+  update(dt){this.t+=dt;this.scrollY-=dt*.05;if(this.scrollY<-760)this.scrollY=520;for(const s of G.stars)s.tw+=dt*.003},
+  render(){
+    P.grad(0,0,800,500,[[0,'#020814'],[1,'#050f25']]);
+    for(const s of G.stars){const a=.4+.4*Math.sin(s.tw);ctx.fillStyle=`rgba(255,255,200,${a})`;ctx.fillRect(s.x,s.y,s.sz,s.sz)}
+    ctx.save();ctx.translate(0,this.scrollY);
+    [
+      ['GIẢI PHÓNG MIỀN NAM','#DA251D',22,0],
+      ['30 / 4 / 1975','#f4d03f',15,32],
+      ['────────────','#333',14,68],
+      ['Thiết kế và nội dung','#888',13,98],
+      ['Phòng HR – TNT Group','#f4d03f',15,120],
+      ['Sản xuất','#888',13,155],
+      ['Phòng HR – TNT Group','#f4d03f',15,177],
+      ['Chỉ đạo','#888',13,212],
+      ['Trưởng Phòng HR – TNT Group','#f4d03f',15,234],
+      ['Trợ lý sản xuất','#888',13,269],
+      ['Claude Co-work','#f4d03f',14,291],
+      ['Antigravity  •  Dreamina AI','#f4d03f',14,312],
+      ['────────────','#333',14,348],
+      ['Dành tặng','#888',13,375],
+      ['Thế hệ cha anh đã hy sinh','#fff',14,398],
+      ['cho nền độc lập Việt Nam','#fff',14,420],
+      ['────────────','#333',14,448],
+      ['🇻🇳  Việt Nam Muôn Năm  🇻🇳','#DA251D',16,478],
+      ['[ Nhấn để quay lại ]','#555',13,520],
+    ].forEach(([tx,c,sz,y])=>{if(tx)P.text(tx,400,y,c,sz,'center')});
+    ctx.restore();
+  },
+};
+
+// ═══════════════════════════════════════════════════════
+//  RESPONSIVE SCALE – giữ tỉ lệ 800×500 trên mọi màn hình
+// ═══════════════════════════════════════════════════════
+(function setupScale(){
+  const wrapper = document.getElementById('gameWrapper');
+  function scaleGame(){
+    const vp = window.visualViewport;
+    const vw = vp ? vp.width  : window.innerWidth;
+    const vh = vp ? vp.height : window.innerHeight;
+    const scale = Math.min(vw / 800, vh / 500);
+    wrapper.style.transform = `translate(-50%,-50%) scale(${scale})`;
+  }
+  scaleGame();
+  window.addEventListener('resize', scaleGame);
+  window.addEventListener('orientationchange', ()=>{ setTimeout(scaleGame, 200); });
+  if(window.visualViewport) window.visualViewport.addEventListener('resize', scaleGame);
+})();
+
+// ═══════════════════════════════════════════════════════
+//  TOUCH SUPPORT – chuyển touch thành click cho mobile
+// ═══════════════════════════════════════════════════════
+(function setupTouch(){
+  const wrapper = document.getElementById('gameWrapper');
+  canvas.addEventListener('touchstart', e=>{
+    e.preventDefault();
+    const touch = e.touches[0];
+    const rect  = canvas.getBoundingClientRect();
+    // Tính lại tọa độ theo scale thực tế
+    const scaleX = 800 / rect.width;
+    const scaleY = 500 / rect.height;
+    const x = (touch.clientX - rect.left) * scaleX;
+    const y = (touch.clientY - rect.top)  * scaleY;
+    // Fire synthetic click tại tọa độ canvas
+    for(const c of G.clickables){
+      if(x>=c.x&&x<=c.x+c.w&&y>=c.y&&y<=c.y+c.h){ c.fn(); return; }
+    }
+  }, {passive:false});
+
+  // HTML overlays (nút quiz) đã dùng onclick nên không cần thêm
+  // Nhưng cần prevent scroll khi chơi game
+  document.body.addEventListener('touchmove', e=>e.preventDefault(), {passive:false});
+})();
+
+// ═══════════════════════════════════════════════════════
+//  NHẠC NỀN – Two Steps From Hell style (epic cinematic)
+// ═══════════════════════════════════════════════════════
+(function setupMusic(){
+  let actx = null, master = null, started = false;
+  const BPM = 138, B = 60/BPM; // fast epic march tempo
+
+  // A minor – cung thứ hào hùng
+  const N = {
+    E3:164.81, F3:174.61, G3:196.00,
+    A3:220.00, B3:246.94, C4:261.63, D4:293.66,
+    E4:329.63, F4:349.23, G4:392.00, A4:440.00,
+    B4:493.88, C5:523.25, D5:587.33, E5:659.25,
+    F5:698.46, G5:784.00, A5:880.00
+  };
+
+  // MELODY – epic cinematic A minor (32 beats / 8 bar × 4/4)
+  const MELODY = [
+    // Bar 1: khai màn mạnh mẽ
+    [N.A4,0.5],[N.A4,0.25],[N.B4,0.25],[N.C5,1],[N.E5,0.5],[N.D5,0.5],[N.C5,1],
+    // Bar 2
+    [N.B4,1],[N.C5,0.5],[N.B4,0.5],[N.A4,2],
+    // Bar 3: leo thang dữ dội
+    [N.C5,0.5],[N.C5,0.25],[N.D5,0.25],[N.E5,0.5],[N.A5,0.5],[N.G5,1],[N.E5,1],
+    // Bar 4
+    [N.F5,1],[N.E5,0.5],[N.D5,0.5],[N.C5,2],
+    // Bar 5: căng thẳng
+    [N.E5,0.5],[N.E5,0.5],[N.D5,1],[N.C5,1],[N.B4,1],
+    // Bar 6
+    [N.A4,1],[N.C5,1],[N.E5,2],
+    // Bar 7: đỉnh điểm
+    [N.F5,0.5],[N.G5,0.5],[N.A5,1],[N.G5,0.5],[N.F5,0.5],[N.E5,1],
+    // Bar 8: kết phần, chuẩn bị lặp
+    [N.D5,1.5],[N.C5,0.5],[N.A4,2],
+  ];
+
+  // BASS – eighth-note power fifths drive (Am | F | C | G | Am | F | G | Am)
+  const BASS = [
+    // Bar 1: Am
+    [N.A3,0.5],[N.A3,0.5],[N.E4,0.5],[N.A3,0.5],[N.A3,0.5],[N.A3,0.5],[N.E4,0.5],[N.A3,0.5],
+    // Bar 2: Am sustained
+    [N.A3,0.5],[N.E4,0.5],[N.A3,0.5],[N.E4,0.5],[N.A3,2],
+    // Bar 3: F
+    [N.F3,0.5],[N.F3,0.5],[N.C4,0.5],[N.F3,0.5],[N.F3,0.5],[N.F3,0.5],[N.C4,0.5],[N.F3,0.5],
+    // Bar 4: C
+    [N.C4,0.5],[N.G4,0.5],[N.C4,0.5],[N.G4,0.5],[N.C4,2],
+    // Bar 5: Am
+    [N.A3,0.5],[N.A3,0.5],[N.E4,0.5],[N.A3,0.5],[N.A3,0.5],[N.A3,0.5],[N.E4,0.5],[N.A3,0.5],
+    // Bar 6: F
+    [N.F3,0.5],[N.C4,0.5],[N.F3,0.5],[N.C4,0.5],[N.F3,2],
+    // Bar 7: G (tension)
+    [N.G3,0.5],[N.G3,0.5],[N.D4,0.5],[N.G3,0.5],[N.G3,0.5],[N.G3,0.5],[N.D4,0.5],[N.G3,0.5],
+    // Bar 8: Am resolve
+    [N.A3,0.5],[N.E4,0.5],[N.A3,0.5],[N.E4,0.5],[N.A3,2],
+  ];
+
+  // --- Drum functions ---
+  function kick(t){
+    const o=actx.createOscillator(), g=actx.createGain();
+    o.connect(g); g.connect(master);
+    o.frequency.setValueAtTime(160,t);
+    o.frequency.exponentialRampToValueAtTime(42,t+0.18);
+    g.gain.setValueAtTime(0.9,t);
+    g.gain.exponentialRampToValueAtTime(0.001,t+0.22);
+    o.start(t); o.stop(t+0.25);
+  }
+  function snare(t){
+    const len=Math.floor(actx.sampleRate*0.14);
+    const buf=actx.createBuffer(1,len,actx.sampleRate);
+    const d=buf.getChannelData(0);
+    for(let i=0;i<len;i++) d[i]=Math.random()*2-1;
+    const src=actx.createBufferSource(); src.buffer=buf;
+    const bp=actx.createBiquadFilter(); bp.type='bandpass';
+    bp.frequency.value=2800; bp.Q.value=0.7;
+    const g=actx.createGain();
+    src.connect(bp); bp.connect(g); g.connect(master);
+    g.gain.setValueAtTime(0.45,t);
+    g.gain.exponentialRampToValueAtTime(0.001,t+0.13);
+    src.start(t); src.stop(t+0.15);
+  }
+  function hihat(t){
+    const len=Math.floor(actx.sampleRate*0.04);
+    const buf=actx.createBuffer(1,len,actx.sampleRate);
+    const d=buf.getChannelData(0);
+    for(let i=0;i<len;i++) d[i]=Math.random()*2-1;
+    const src=actx.createBufferSource(); src.buffer=buf;
+    const hp=actx.createBiquadFilter(); hp.type='highpass';
+    hp.frequency.value=9000;
+    const g=actx.createGain();
+    src.connect(hp); hp.connect(g); g.connect(master);
+    g.gain.setValueAtTime(0.12,t);
+    g.gain.exponentialRampToValueAtTime(0.001,t+0.04);
+    src.start(t); src.stop(t+0.05);
+  }
+  function scheduleDrums(t0, bars){
+    for(let bar=0;bar<bars;bar++){
+      for(let beat=0;beat<4;beat++){
+        const t=t0+(bar*4+beat)*B;
+        if(beat===0||beat===2) kick(t);
+        if(beat===1||beat===3) snare(t);
+        hihat(t); hihat(t+B*0.5); // 8th note hi-hat
+      }
+    }
+  }
+
+  // --- Brass note: 2 detuned sawtooth + lowpass ---
+  function brass(freq, t0, beats, vol){
+    [0, 10].forEach(detune => {
+      const o=actx.createOscillator(), lp=actx.createBiquadFilter(), g=actx.createGain();
+      o.type='sawtooth'; o.frequency.value=freq; o.detune.value=detune;
+      lp.type='lowpass'; lp.frequency.value=2200; lp.Q.value=1;
+      o.connect(lp); lp.connect(g); g.connect(master);
+      const d=beats*B;
+      g.gain.setValueAtTime(0.001,t0);
+      g.gain.linearRampToValueAtTime(vol,t0+0.04);
+      g.gain.setValueAtTime(vol,t0+d*0.75);
+      g.gain.exponentialRampToValueAtTime(0.001,t0+d*0.96);
+      o.start(t0); o.stop(t0+d+0.05);
+    });
+  }
+
+  // --- Bass note: triangle + sawtooth sub ---
+  function bassNote(freq, t0, beats, vol){
+    const o=actx.createOscillator(), g=actx.createGain();
+    o.type='triangle'; o.frequency.value=freq;
+    o.connect(g); g.connect(master);
+    const d=beats*B;
+    g.gain.setValueAtTime(0.001,t0);
+    g.gain.linearRampToValueAtTime(vol,t0+0.02);
+    g.gain.setValueAtTime(vol,t0+d*0.78);
+    g.gain.exponentialRampToValueAtTime(0.001,t0+d*0.96);
+    o.start(t0); o.stop(t0+d+0.05);
+  }
+
+  function scheduleLoop(t0){
+    const bars = 8;
+    let tm=t0, tb=t0;
+    MELODY.forEach(([f,d])=>{ brass(f,tm,d,0.10); tm+=d*B; });
+    BASS.forEach(  ([f,d])=>{ bassNote(f,tb,d,0.09); tb+=d*B; });
+    scheduleDrums(t0, bars);
+    const loopSec = MELODY.reduce((s,[,d])=>s+d,0)*B;
+    setTimeout(()=> scheduleLoop(actx.currentTime+0.06), (loopSec-0.35)*1000);
+  }
+
+  function startMusic(){
+    if(started) return; started=true;
+    // Dùng lại _gameAC nếu INTRO đã tạo sẵn
+    actx = window._gameAC || new (window.AudioContext||window.webkitAudioContext)();
+    window._gameAC = actx; // chia sẻ với typewriter
+    if(actx.state==='suspended') actx.resume();
+    // Master compressor – giữ âm thanh cân bằng, không bị vỡ
+    const comp=actx.createDynamicsCompressor();
+    comp.threshold.value=-14; comp.knee.value=6;
+    comp.ratio.value=4; comp.attack.value=0.003; comp.release.value=0.2;
+    comp.connect(actx.destination);
+    master=comp;
+    scheduleLoop(actx.currentTime+0.2);
+  }
+
+  // Không tự động bắt đầu khi click – chỉ bắt đầu khi vào MENU
+  window._startMusic = startMusic;
+})();
+
+// ═══════════════════════════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════════════════════════
+(function fakeProgress(){
+  let p=0; const bar=document.getElementById('lbar');
+  const iv=setInterval(()=>{p+=Math.random()*12+4;if(p>=90){p=90;clearInterval(iv)}bar.style.width=p+'%'},120);
+})();
+
+document.fonts.ready.then(()=>G.init());
+</script>
+</body>
+</html>
