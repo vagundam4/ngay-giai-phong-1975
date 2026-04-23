@@ -670,6 +670,7 @@ G.scenes.INTRO = (function(){
       this._transitioning=false;
       this._audioUnlocked=false;
       this._initSlide();
+      if(window._startMusic) window._startMusic();
       // Click chỉ để bật audio, không skip
       G.addClick(0,0,800,500,()=>{
         this._audioUnlocked=true;
@@ -750,7 +751,6 @@ G.scenes.INTRO = (function(){
 G.scenes.MENU = {
   t:0,
   enter(){this.t=0;G.clearClicks();
-    if(window._startMusic) window._startMusic();
     G.addClick(270,330,260,58,()=>{
       document.getElementById('pinfoName').value='';
       document.getElementById('pinfoPos').value='';
@@ -1354,7 +1354,7 @@ window._startMusic = (function(){
         src.buffer = decoded;
         src.loop = true;
         const gain = ac.createGain();
-        gain.gain.value = 0.7;
+        gain.gain.value = 0.35;
         src.connect(gain);
         gain.connect(ac.destination);
         src.start(0);
