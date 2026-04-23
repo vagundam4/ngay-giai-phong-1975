@@ -969,14 +969,13 @@ G.scenes.GAME = {
       const sh=120, sw=Math.round(SSW*(sh/SSH)); // ~185×120px
       const bob = j.walking ? Math.sin(j.walkT*6)*1.8 : 0;
       if(G.imgs.soldiers && G.imgs.soldiers.complete && G.imgs.soldiers.naturalWidth){
-        // Người lính thứ 4 – ở phía sau, nhỏ hơn và hơi mờ hơn
-        const sh4=Math.round(sh*0.86), sw4=Math.round(sw*0.86);
-        const bob4 = j.walking ? Math.sin(j.walkT*6 + 1.1)*1.8 : 0; // lệch pha bob
-        ctx.globalAlpha=0.82;
-        ctx.drawImage(G.imgs.soldiers, SSX,SSY,SSW,SSH, heroScrX - sw/2 - sw*0.48, heroY-sh4+bob4, sw4, sh4);
-        ctx.globalAlpha=1;
-        // 3 người phía trước
+        // 3 người chính
         ctx.drawImage(G.imgs.soldiers, SSX,SSY,SSW,SSH, heroScrX-sw/2, heroY-sh+bob, sw, sh);
+        // Người thứ 4: crop 1 lính (1/3 trái của sprite) đặt phía sau nhóm
+        const sw1=Math.round(sw/3);
+        const bob4 = j.walking ? Math.sin(j.walkT*6+0.9)*1.8 : 0;
+        ctx.drawImage(G.imgs.soldiers, SSX, SSY, Math.round(SSW/3), SSH,
+          heroScrX - sw/2 - sw1 + 10, heroY - sh + bob4, sw1, sh);
       }
     } else {
       // ── Giai đoạn 1: Nhân vật Linh ────────────────────
