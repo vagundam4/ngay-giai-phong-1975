@@ -619,35 +619,49 @@ G.scenes.INTRO = (function(){
     }
   }
 
-  // Typewriter click – noise burst + low thump, nghe giống máy đánh chữ thật
+  // Mechanical keyboard click – blue switch style (click + thock + bottom-out)
   function _playClick(ac){
     try{
       const t = ac.currentTime;
-      // Noise burst – tiếng lách tách cơ học
-      const nLen = Math.floor(ac.sampleRate * 0.045);
-      const nBuf = ac.createBuffer(1, nLen, ac.sampleRate);
-      const nd   = nBuf.getChannelData(0);
-      for(let i=0;i<nLen;i++) nd[i]=(Math.random()*2-1);
-      const nSrc = ac.createBufferSource();
-      nSrc.buffer = nBuf;
+      const vary = Math.random();
+
+      // 1. Click transient – tiếng "tíc" sắc gọn (high-pass noise, 6ms)
+      const cLen = Math.floor(ac.sampleRate * 0.006);
+      const cBuf = ac.createBuffer(1, cLen, ac.sampleRate);
+      const cd = cBuf.getChannelData(0);
+      for(let i=0;i<cLen;i++) cd[i] = (Math.random()*2-1) * Math.pow(1 - i/cLen, 3);
+      const cSrc = ac.createBufferSource(); cSrc.buffer = cBuf;
+      const hp = ac.createBiquadFilter();
+      hp.type = 'highpass'; hp.frequency.value = 3500 + vary*800;
+      const cG = ac.createGain();
+      cG.gain.setValueAtTime(0.5, t);
+      cG.gain.exponentialRampToValueAtTime(0.001, t+0.006);
+      cSrc.connect(hp); hp.connect(cG); cG.connect(ac.destination);
+      cSrc.start(t); cSrc.stop(t+0.006);
+
+      // 2. Thock body – tiếng "thock" giữa (bandpass noise, 20ms)
+      const bLen = Math.floor(ac.sampleRate * 0.022);
+      const bBuf = ac.createBuffer(1, bLen, ac.sampleRate);
+      const bd = bBuf.getChannelData(0);
+      for(let i=0;i<bLen;i++) bd[i] = (Math.random()*2-1) * Math.pow(1 - i/bLen, 1.8);
+      const bSrc = ac.createBufferSource(); bSrc.buffer = bBuf;
       const bp = ac.createBiquadFilter();
-      bp.type='bandpass';
-      bp.frequency.value = 1800 + Math.random()*600;
-      bp.Q.value = 0.8;
-      const nG = ac.createGain();
-      nG.gain.setValueAtTime(0.55, t);
-      nG.gain.exponentialRampToValueAtTime(0.001, t+0.038);
-      nSrc.connect(bp); bp.connect(nG); nG.connect(ac.destination);
-      nSrc.start(t); nSrc.stop(t+0.045);
-      // Low thump – tiếng búa đập mặt giấy
-      const o=ac.createOscillator(), og=ac.createGain();
-      o.type='sine';
-      o.frequency.setValueAtTime(200+Math.random()*60, t);
-      o.frequency.exponentialRampToValueAtTime(55, t+0.04);
-      og.gain.setValueAtTime(0.35, t);
-      og.gain.exponentialRampToValueAtTime(0.001, t+0.05);
+      bp.type = 'bandpass'; bp.frequency.value = 600 + vary*200; bp.Q.value = 1.5;
+      const bG = ac.createGain();
+      bG.gain.setValueAtTime(0.38, t+0.002);
+      bG.gain.exponentialRampToValueAtTime(0.001, t+0.024);
+      bSrc.connect(bp); bp.connect(bG); bG.connect(ac.destination);
+      bSrc.start(t+0.002); bSrc.stop(t+0.024);
+
+      // 3. Bottom-out thud – tiếng "thud" đáy phím (sine decay, 15ms)
+      const o = ac.createOscillator(), og = ac.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(130 + vary*30, t+0.003);
+      o.frequency.exponentialRampToValueAtTime(65, t+0.016);
+      og.gain.setValueAtTime(0.22, t+0.003);
+      og.gain.exponentialRampToValueAtTime(0.001, t+0.018);
       o.connect(og); og.connect(ac.destination);
-      o.start(t); o.stop(t+0.055);
+      o.start(t+0.003); o.stop(t+0.020);
     }catch(e){}
   }
   function typeClick(){
