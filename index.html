@@ -320,8 +320,8 @@ const G = {
   playerInfo:{name:'',position:'',bu:''},
   mouse:{x:0,y:0}, clickables:[],
   stars:[], lastTime:0,
-  imgs:{cover:null,bg1:null,bgEnd:null,char:null,soldiers:null,tank:null,dinhDocLap:null,ironGate:null,op1:null,op2:null,op3:null},
-  imgLoaded:0, imgTotal:11,
+  imgs:{cover:null,bg1:null,bgEnd:null,char:null,soldiers:null,tank:null,dinhDocLap:null,ironGate:null,op1:null,op2:null,op3:null,end1:null,end2:null},
+  imgLoaded:0, imgTotal:13,
   itemImgCache:{}, // ảnh vật phẩm preload cho canvas road item
   tr:{active:false,dir:'out',alpha:0,dur:500,timer:0,cb:null},
 
@@ -559,6 +559,8 @@ const G = {
     load('op1','game image/opening 1.jpg');
     load('op2','game image/opening 2.jpg');
     load('op3','game image/after opening styled.png');
+    load('end1','game image/ending 1.jpg');
+    load('end2','game image/ending 2.jpg');
     // Preload ảnh vật phẩm cho road item (không tính imgTotal)
     Object.entries(ITEM_IMAGES).forEach(([name,src])=>{
       const img=new Image(); img.src=src;
@@ -948,6 +950,15 @@ G.scenes.GAME = {
         ctx.scale(-1, 1);
         ctx.drawImage(G.imgs.tank, TSX,TSY,TSW,TSH, -tw/2, heroY-th, tw, th);
         ctx.restore();
+        // Vẽ lại số "390" không bị lật (overlay không flip)
+        ctx.save();
+        ctx.fillStyle='rgba(0,0,0,0.62)';
+        ctx.fillRect(heroScrX - tw*0.13 - 16, heroY - th*0.58, 32, 14);
+        ctx.font='bold 10px serif';
+        ctx.textAlign='center';
+        ctx.fillStyle='#ffffff';
+        ctx.fillText('390', heroScrX - tw*0.13, heroY - th*0.58 + 11);
+        ctx.restore();
       } else {
         drawJourneyTank(heroScrX, heroY, t, j.walking);
       }
@@ -1002,26 +1013,55 @@ G.scenes.FINAL = {
     if(ac.state==='suspended') ac.resume();
     try{
       const t = ac.currentTime;
-      // Tiếng nổ thấp – boom
-      const boom = ac.createOscillator(), bg = ac.createGain();
-      boom.type='sine'; boom.frequency.setValueAtTime(90,t); boom.frequency.exponentialRampToValueAtTime(25,t+0.6);
-      bg.gain.setValueAtTime(0.9,t); bg.gain.exponentialRampToValueAtTime(0.001,t+0.7);
-      boom.connect(bg); bg.connect(ac.destination); boom.start(t); boom.stop(t+0.7);
-      // Noise burst – tiếng sắt vỡ
-      const nLen=Math.floor(ac.sampleRate*0.5);
-      const nBuf=ac.createBuffer(1,nLen,ac.sampleRate);
-      const nd=nBuf.getChannelData(0); for(let i=0;i<nLen;i++) nd[i]=(Math.random()*2-1)*Math.pow(1-i/nLen,1.2);
-      const nSrc=ac.createBufferSource(); nSrc.buffer=nBuf;
-      const lp=ac.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=1800;
-      const ng=ac.createGain(); ng.gain.setValueAtTime(0.6,t); ng.gain.exponentialRampToValueAtTime(0.001,t+0.5);
-      nSrc.connect(lp); lp.connect(ng); ng.connect(ac.destination); nSrc.start(t); nSrc.stop(t+0.5);
-      // Tiếng kim loại va chạm – clang
-      [350,520,780].forEach((freq,i)=>{
+
+      // ── Layer 1: Sub-bass va chạm sâu (nền rung) ──────────
+      const sub=ac.createOscillator(), sg=ac.createGain();
+      sub.type='sine'; sub.frequency.setValueAtTime(60,t); sub.frequency.exponentialRampToValueAtTime(18,t+1.6);
+      sg.gain.setValueAtTime(1.5,t); sg.gain.exponentialRampToValueAtTime(0.001,t+1.8);
+      sub.connect(sg); sg.connect(ac.destination); sub.start(t); sub.stop(t+1.8);
+
+      // ── Layer 2: Mid boom – tiếng nổ chính ────────────────
+      const boom=ac.createOscillator(), bg=ac.createGain();
+      boom.type='sine'; boom.frequency.setValueAtTime(130,t); boom.frequency.exponentialRampToValueAtTime(28,t+1.0);
+      bg.gain.setValueAtTime(1.3,t); bg.gain.exponentialRampToValueAtTime(0.001,t+1.2);
+      boom.connect(bg); bg.connect(ac.destination); boom.start(t); boom.stop(t+1.2);
+
+      // ── Layer 3: Impact burst (tiếng sắt bể tức thì) ──────
+      const n1L=Math.floor(ac.sampleRate*0.35);
+      const n1B=ac.createBuffer(1,n1L,ac.sampleRate);
+      const n1d=n1B.getChannelData(0); for(let i=0;i<n1L;i++) n1d[i]=(Math.random()*2-1)*Math.pow(1-i/n1L,0.7);
+      const n1S=ac.createBufferSource(); n1S.buffer=n1B;
+      const lp1=ac.createBiquadFilter(); lp1.type='bandpass'; lp1.frequency.value=2800; lp1.Q.value=0.5;
+      const ng1=ac.createGain(); ng1.gain.setValueAtTime(1.4,t); ng1.gain.exponentialRampToValueAtTime(0.001,t+0.35);
+      n1S.connect(lp1); lp1.connect(ng1); ng1.connect(ac.destination); n1S.start(t); n1S.stop(t+0.35);
+
+      // ── Layer 4: Tường đổ – rumble kéo dài ────────────────
+      const n2L=Math.floor(ac.sampleRate*2.5);
+      const n2B=ac.createBuffer(1,n2L,ac.sampleRate);
+      const n2d=n2B.getChannelData(0); for(let i=0;i<n2L;i++) n2d[i]=(Math.random()*2-1)*Math.pow(1-i/n2L,0.35);
+      const n2S=ac.createBufferSource(); n2S.buffer=n2B;
+      const lp2=ac.createBiquadFilter(); lp2.type='lowpass'; lp2.frequency.value=700;
+      const ng2=ac.createGain(); ng2.gain.setValueAtTime(0.85,t+0.06); ng2.gain.exponentialRampToValueAtTime(0.001,t+2.5);
+      n2S.connect(lp2); lp2.connect(ng2); ng2.connect(ac.destination); n2S.start(t+0.06); n2S.stop(t+2.5);
+
+      // ── Layer 5: Gạch đá rơi – mid crumble ───────────────
+      const n3L=Math.floor(ac.sampleRate*1.8);
+      const n3B=ac.createBuffer(1,n3L,ac.sampleRate);
+      const n3d=n3B.getChannelData(0); for(let i=0;i<n3L;i++) n3d[i]=(Math.random()*2-1)*Math.pow(1-i/n3L,0.55);
+      const n3S=ac.createBufferSource(); n3S.buffer=n3B;
+      const hp=ac.createBiquadFilter(); hp.type='bandpass'; hp.frequency.value=1200; hp.Q.value=0.4;
+      const ng3=ac.createGain(); ng3.gain.setValueAtTime(0.55,t+0.12); ng3.gain.exponentialRampToValueAtTime(0.001,t+1.8);
+      n3S.connect(hp); hp.connect(ng3); ng3.connect(ac.destination); n3S.start(t+0.12); n3S.stop(t+1.8);
+
+      // ── Layer 6: Kim loại va chạm – nhiều tần số ─────────
+      [220,340,480,620,820,1050,1400].forEach((freq,i)=>{
         const o=ac.createOscillator(), g=ac.createGain();
-        o.type='triangle'; o.frequency.value=freq*(1+Math.random()*0.08);
-        g.gain.setValueAtTime(0.25,t+i*0.03); g.gain.exponentialRampToValueAtTime(0.001,t+0.4+i*0.1);
-        o.connect(g); g.connect(ac.destination); o.start(t+i*0.03); o.stop(t+0.5);
+        o.type='triangle'; o.frequency.value=freq*(1+Math.random()*0.1);
+        g.gain.setValueAtTime(0.4,t+i*0.02);
+        g.gain.exponentialRampToValueAtTime(0.001,t+0.45+i*0.09);
+        o.connect(g); g.connect(ac.destination); o.start(t+i*0.02); o.stop(t+0.55+i*0.09);
       });
+
     }catch(e){}
   },
 
@@ -1040,7 +1080,7 @@ G.scenes.FINAL = {
     setTimeout(()=>{this.phase=1}, 400);
     setTimeout(()=>{this.phase=2; this._playCrash();}, 3800); // tank đâm vào cổng
     setTimeout(()=>{this.phase=3}, 6000); // màn chiến thắng
-    setTimeout(()=>G.fadeTo('CREDITS'), 14000); // auto credits
+    setTimeout(()=>G.fadeTo('ENDING'), 12000); // auto sang ending
   },
 
   update(dt){
@@ -1107,7 +1147,7 @@ G.scenes.FINAL = {
     // ④ Xe tăng 390
     const TSX=5,TSY=256,TSW=1013,TSH=511;
     const fth=105, ftw=Math.round(TSW*(fth/TSH));
-    const roadY=462; // hạ xuống để xe tăng đứng trên mặt cỏ
+    const roadY=480; // hạ xuống để xe tăng đứng trên mặt cỏ
     if(this.phase>=1 && G.imgs.tank && G.imgs.tank.complete && G.imgs.tank.naturalWidth){
       ctx.drawImage(G.imgs.tank, TSX,TSY,TSW,TSH, this.tankX-ftw/2, roadY-fth, ftw, fth);
     }
@@ -1297,6 +1337,146 @@ G.scenes.LEADERBOARD = {
     P.text('Xếp theo: điểm cao nhất  •  cùng điểm thì thời gian ít hơn thắng',400,492,'#444',11,'center');
   },
 };
+
+// ═══════════════════════════════════════════════════════
+//  SCENE: ENDING – 2 ảnh kết thúc với typewriter
+// ═══════════════════════════════════════════════════════
+G.scenes.ENDING = (function(){
+  const END_SLIDES = [
+    {
+      key:'end1',
+      text:'Chiếc xe tăng 390 húc đổ cánh cổng sắt cuối cùng, phá vỡ hoàn toàn phòng tuyến của chính quyền Sài Gòn. Ngay sau đó, từ một hướng khác, xe tăng 843 tiến vào.',
+    },
+    {
+      key:'end2',
+      text:'Giữa khói lửa và hỗn loạn, người chiến sĩ Bùi Quang Thận lao lên, mang theo lá cờ giải phóng. Ông chạy qua các tầng lầu, tiến lên nóc Dinh – và cắm lá cờ chiến thắng, khép lại hơn 20 năm chiến tranh.',
+    },
+  ];
+  const CHAR_MS  = 50;
+  const PAUSE_MS = 3000;
+  const FADE_MS  = 550;
+  const FONT_SZ  = 14;
+  const LINE_H   = 22;
+  const TEXT_X   = 32;
+  const TEXT_W   = 736;
+  const TEXT_Y0  = 310;
+
+  function calcLines(text){
+    ctx.font=`600 ${FONT_SZ}px Rokkitt`;
+    const words=text.split(' '), lines=[];
+    let cur='';
+    for(const w of words){
+      const test=cur+(cur?' ':'')+w;
+      if(ctx.measureText(test).width>TEXT_W && cur){ lines.push(cur); cur=w; }
+      else cur=test;
+    }
+    if(cur) lines.push(cur);
+    return lines;
+  }
+
+  function drawTyped(lines, charIdx){
+    ctx.font=`600 ${FONT_SZ}px Rokkitt`;
+    ctx.textAlign='left';
+    let left=charIdx, y=TEXT_Y0;
+    for(const line of lines){
+      if(left<=0) break;
+      const vis=line.slice(0,left);
+      ctx.lineWidth=3.5; ctx.strokeStyle='rgba(0,0,0,0.92)'; ctx.strokeText(vis,TEXT_X,y);
+      ctx.fillStyle='#f0e6c8'; ctx.fillText(vis,TEXT_X,y);
+      left-=line.length+1; y+=LINE_H;
+    }
+  }
+
+  function typeClick(){
+    const ac=window._gameAC; if(!ac) return;
+    const buf=window._typingBuf; if(!buf) return;
+    try{
+      const src=ac.createBufferSource(); src.buffer=buf;
+      const off=Math.random()*Math.max(0,buf.duration-0.12);
+      const g=ac.createGain(); g.gain.value=0.9;
+      src.connect(g); g.connect(ac.destination); src.start(0,off,0.11);
+    }catch(e){}
+    if(ac.state==='suspended') ac.resume();
+  }
+
+  return {
+    slideIdx:0, charIdx:0, charTimer:0, phase:0, alpha:0, pauseT:0,
+    _lines:[], _totalChars:0, _transitioning:false,
+
+    _initSlide(){
+      this.charIdx=0; this.charTimer=0; this.phase=0;
+      this.alpha=0; this.pauseT=0;
+      this._lines=calcLines(END_SLIDES[this.slideIdx].text);
+      this._totalChars=END_SLIDES[this.slideIdx].text.length;
+    },
+
+    enter(){
+      G.clearClicks();
+      this.slideIdx=0; this._transitioning=false;
+      this._initSlide();
+      // Click để skip slide hiện tại
+      G.addClick(0,0,800,500,()=>{
+        if(this.phase<2){ this.charIdx=this._totalChars; this.phase=2; this.pauseT=0; }
+        else if(this.phase===2){ this.pauseT=PAUSE_MS; }
+      });
+    },
+
+    update(dt){
+      if(this._transitioning) return;
+      if(this.phase===0){
+        this.alpha=Math.min(1, this.alpha+dt/FADE_MS);
+        if(this.alpha>=1) this.phase=1;
+      } else if(this.phase===1){
+        this.charTimer+=dt;
+        const prev=this.charIdx;
+        this.charIdx=Math.min(this._totalChars, Math.floor(this.charTimer/CHAR_MS));
+        if(this.charIdx>prev && this.charIdx<this._totalChars) typeClick();
+        if(this.charIdx>=this._totalChars){ this.phase=2; this.pauseT=0; }
+      } else if(this.phase===2){
+        this.pauseT+=dt;
+        if(this.pauseT>=PAUSE_MS) this.phase=3;
+      } else if(this.phase===3){
+        this.alpha=Math.max(0, this.alpha-dt/FADE_MS);
+        if(this.alpha<=0){
+          this.slideIdx++;
+          if(this.slideIdx>=END_SLIDES.length){
+            this._transitioning=true;
+            G.fadeTo('CREDITS'); return;
+          }
+          this._initSlide();
+        }
+      }
+    },
+
+    render(){
+      ctx.fillStyle='#000'; ctx.fillRect(0,0,800,500);
+      if(this._transitioning || this.slideIdx>=END_SLIDES.length) return;
+      const img=G.imgs[END_SLIDES[this.slideIdx].key];
+      if(img && img.complete){
+        ctx.globalAlpha=this.alpha;
+        try{ ctx.drawImage(img,0,0,800,500); }catch(e){}
+        ctx.globalAlpha=1;
+      }
+      if(this.phase>=1 && this.charIdx>0){
+        const grd=ctx.createLinearGradient(0,TEXT_Y0-50,0,500);
+        grd.addColorStop(0,'rgba(0,0,0,0)');
+        grd.addColorStop(0.25,'rgba(0,0,0,0.72)');
+        grd.addColorStop(1,'rgba(0,0,0,0.92)');
+        const gA=Math.min(1,this.charTimer/250);
+        if(gA>0){ ctx.globalAlpha=gA; ctx.fillStyle=grd; ctx.fillRect(0,TEXT_Y0-50,800,500-(TEXT_Y0-50)); ctx.globalAlpha=1; }
+        ctx.globalAlpha=this.alpha;
+        drawTyped(this._lines, this.charIdx);
+        ctx.globalAlpha=1;
+      }
+      P.text(`${this.slideIdx+1} / ${END_SLIDES.length}`,780,18,'#555',11,'right');
+      // Gợi ý nhấn để skip
+      const pulse=0.45+0.3*Math.sin(Date.now()/500);
+      ctx.globalAlpha=pulse;
+      P.text('[ Nhấn để tiếp tục ]',400,488,'#888',11,'center');
+      ctx.globalAlpha=1;
+    },
+  };
+})();
 
 // ═══════════════════════════════════════════════════════
 //  SCENE: CREDITS
