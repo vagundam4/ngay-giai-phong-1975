@@ -1315,13 +1315,19 @@ G.scenes.LEADERBOARD = {
     this.t=0; this.loading=true; this.rows=[]; this.errMsg='';
     G.clearClicks();
     G.addClick(10,10,100,34,()=>G.fadeTo('MENU'));
-    if(!GSHEET_URL||GSHEET_URL==='YOUR_GOOGLE_SCRIPT_URL_HERE'){
-      this.errMsg='Chưa cấu hình Google Sheets'; this.loading=false; return;
+    // Kiểm tra URL hợp lệ (phải bắt đầu bằng https://script.google.com)
+    const validUrl = GSHEET_URL && GSHEET_URL.startsWith('https://script.google.com');
+    if(!validUrl){
+      this.errMsg='⚠ Chưa cấu hình Google Sheets\nCần dán URL Apps Script vào GSHEET_URL trong index.html';
+      this.loading=false; return;
     }
-    fetch(GSHEET_URL)
+    // Timeout 8 giây để tránh treo màn hình
+    const ctrl = new AbortController();
+    const timer = setTimeout(()=>ctrl.abort(), 8000);
+    fetch(GSHEET_URL, {signal: ctrl.signal})
       .then(r=>r.json())
-      .then(data=>{ this.rows=Array.isArray(data)?data:[]; this.loading=false; })
-      .catch(()=>{ this.errMsg='Không thể tải dữ liệu'; this.loading=false; });
+      .then(data=>{ clearTimeout(timer); this.rows=Array.isArray(data)?data:[]; this.loading=false; })
+      .catch(()=>{ clearTimeout(timer); this.errMsg='Không thể tải dữ liệu – kiểm tra lại URL Apps Script'; this.loading=false; });
   },
   update(dt){ this.t+=dt; },
   render(){
@@ -1349,8 +1355,11 @@ G.scenes.LEADERBOARD = {
       return;
     }
     if(this.errMsg){
-      P.text(this.errMsg,400,260,'#e74c3c',14,'center');
-      P.text('(Vui lòng kiểm tra kết nối)',400,286,'#666',12,'center');
+      // Hỗ trợ hiển thị nhiều dòng (split \n)
+      this.errMsg.split('\n').forEach((line,i)=>{
+        P.text(line,400,248+i*24,'#e74c3c',13,'center');
+      });
+      P.text('[ ◀ Quay lại ]',400,320,'#666',12,'center');
       return;
     }
     if(this.rows.length===0){
@@ -1657,5 +1666,3 @@ window._startMusic = (function(){
 
 document.fonts.ready.then(()=>G.init());
 </script>
-</body>
-</html>
