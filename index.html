@@ -149,6 +149,11 @@ canvas{display:block;width:800px;height:500px;image-rendering:pixelated}
 </div>
 <script>
 // ═══════════════════════════════════════════════════════
+//  CẤU HÌNH GOOGLE SHEETS – dán URL Apps Script vào đây
+// ═══════════════════════════════════════════════════════
+const GSHEET_URL = '1e6J8Xr9x6HKNrRqmPvad_aG3yby96F5UnuoSCVrDegI';
+
+// ═══════════════════════════════════════════════════════
 //  AUDIO CONTEXT + PRELOAD TYPING SOUND
 // ═══════════════════════════════════════════════════════
 (function(){
@@ -385,7 +390,9 @@ const G = {
       won:won,
       date:new Date().toLocaleDateString('vi-VN')
     };
-    fetch('/api/record',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(rec)}).catch(()=>{});
+    if(!GSHEET_URL||GSHEET_URL==='YOUR_GOOGLE_SCRIPT_URL_HERE') return;
+    // mode:'no-cors' để bypass CORS preflight – data vẫn lưu được vào Sheet
+    fetch(GSHEET_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(rec)}).catch(()=>{});
   },
 
   startGame(){
@@ -1308,9 +1315,12 @@ G.scenes.LEADERBOARD = {
     this.t=0; this.loading=true; this.rows=[]; this.errMsg='';
     G.clearClicks();
     G.addClick(10,10,100,34,()=>G.fadeTo('MENU'));
-    fetch('/api/leaderboard')
+    if(!GSHEET_URL||GSHEET_URL==='YOUR_GOOGLE_SCRIPT_URL_HERE'){
+      this.errMsg='Chưa cấu hình Google Sheets'; this.loading=false; return;
+    }
+    fetch(GSHEET_URL)
       .then(r=>r.json())
-      .then(data=>{ this.rows=data||[]; this.loading=false; })
+      .then(data=>{ this.rows=Array.isArray(data)?data:[]; this.loading=false; })
       .catch(()=>{ this.errMsg='Không thể tải dữ liệu'; this.loading=false; });
   },
   update(dt){ this.t+=dt; },
