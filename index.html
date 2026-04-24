@@ -151,7 +151,7 @@ canvas{display:block;width:800px;height:500px;image-rendering:pixelated}
 // ═══════════════════════════════════════════════════════
 //  CẤU HÌNH GOOGLE SHEETS – dán URL Apps Script vào đây
 // ═══════════════════════════════════════════════════════
-const GSHEET_URL = 'https://script.google.com/macros/s/AKfycbyPghrSQxF5GB-ZZ7feqBM6el-pB9K-EPPVW-lS887W2jl89o7YohjdJI_pr6Tly3m6/exec';
+const GSHEET_URL = 'https://script.google.com/macros/s/AKfycbzY5A312o43zcuwN5ekwaLiFKtBZGJZgvPkPa09Fwm3JACw1cu2FMRivquHRy6DJ2qF/exec';
 
 // ═══════════════════════════════════════════════════════
 //  AUDIO CONTEXT + PRELOAD TYPING SOUND
@@ -1321,13 +1321,15 @@ G.scenes.LEADERBOARD = {
       this.errMsg='⚠ Chưa cấu hình Google Sheets\nCần dán URL Apps Script vào GSHEET_URL trong index.html';
       this.loading=false; return;
     }
-    // Timeout 8 giây để tránh treo màn hình
-    const ctrl = new AbortController();
-    const timer = setTimeout(()=>ctrl.abort(), 8000);
-    fetch(GSHEET_URL, {signal: ctrl.signal})
-      .then(r=>r.json())
-      .then(data=>{ clearTimeout(timer); this.rows=Array.isArray(data)?data:[]; this.loading=false; })
-      .catch(()=>{ clearTimeout(timer); this.errMsg='Không thể tải dữ liệu – kiểm tra lại URL Apps Script'; this.loading=false; });
+    // Fetch với timeout 20s (Apps Script cold-start có thể chậm)
+    const self = this;
+    const timeoutId = setTimeout(()=>{
+      if(self.loading){ self.errMsg='Quá thời gian chờ – thử lại sau'; self.loading=false; }
+    }, 20000);
+    fetch(GSHEET_URL + '?t=' + Date.now(), {method:'GET', mode:'cors', cache:'no-cache'})
+      .then(r=>r.text())
+      .then(txt=>{ clearTimeout(timeoutId); try{ self.rows=JSON.parse(txt)||[]; }catch(e){ self.rows=[]; } self.loading=false; })
+      .catch(()=>{ clearTimeout(timeoutId); self.errMsg='Lỗi kết nối – kiểm tra Apps Script đã Deploy chưa'; self.loading=false; });
   },
   update(dt){ this.t+=dt; },
   render(){
