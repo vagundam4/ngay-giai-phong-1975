@@ -352,7 +352,16 @@ const G = {
   },
   addClick(x,y,w,h,fn){this.clickables.push({x,y,w,h,fn})},
   clearClicks(){this.clickables=[]},
-  goto(name){if(!this.scenes[name])return;this.clearClicks();this.scene=this.scenes[name];if(this.scene.enter)this.scene.enter()},
+  goto(name){
+    if(!this.scenes[name])return;
+    this.clearClicks();
+    // Ẩn tất cả HTML overlay khi chuyển scene
+    ['gameOverScreen','questionOverlay','resultFeedback','stageIntro','finalInventory'].forEach(id=>{
+      const el=document.getElementById(id); if(el) el.style.display='none';
+    });
+    this.scene=this.scenes[name];
+    if(this.scene.enter)this.scene.enter();
+  },
   fadeTo(name,dur=500){this.tr={active:true,dir:'out',alpha:0,dur,timer:0,cb:()=>{this.goto(name);this.fadeIn(dur)}};},
   fadeIn(dur=500){this.tr={active:true,dir:'in',alpha:1,dur,timer:0,cb:null}},
 
